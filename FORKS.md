@@ -1,6 +1,6 @@
 # Engine forks
 
-Theme components that are copies of engine components, changed for Anaqa. The engine does not
+Theme components that are copies of engine components, changed for Wishah. The engine does not
 update them, so each upgrade of `@salla.sa/twilight-theme-engine` can leave them behind. This file
 records where each one came from.
 

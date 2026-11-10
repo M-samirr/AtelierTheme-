@@ -4,7 +4,7 @@ import { StartClient } from '@tanstack/react-start/client';
 import { initThemeSentry } from '@salla.sa/twilight-theme-engine/sentry/client';
 import { removeEdgeInjections } from '@salla.sa/twilight-theme-engine/dom';
 
-initThemeSentry('anaqa');
+initThemeSentry('wishah');
 
 export function hydrate(): void {
   removeEdgeInjections();
