@@ -1,4 +1,4 @@
-# Wishah
+# Wishah Studio
 
 An editorial [Salla](https://salla.sa) storefront theme for fashion and beauty stores, built on
 `@salla.sa/twilight-theme-engine` (TanStack Start, server-rendered in workerd on Salla's
