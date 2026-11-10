@@ -1,0 +1,58 @@
+/* On top of Tailwind's preflight: page colours, text rendering and a few element defaults. */
+
+html {
+  /* Reserve the scrollbar gutter so locking scroll (drawers, modals) never shifts the page. */
+  scrollbar-gutter: stable;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--at-canvas);
+  color: var(--at-ink);
+  font-family: var(--at-font-body);
+  font-size: var(--at-text-base);
+  line-height: var(--at-leading-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Fixed bars (the mobile bottom bar) add their own height to this. */
+  padding-bottom: var(--at-safe-bottom);
+}
+
+/* Scroll lock while a drawer (`menu-opened`, set by the engine) or a Salla
+   modal (`modal-is-open`, set by <salla-modal>) is open. */
+body.menu-opened,
+body.modal-is-open {
+  overflow: hidden;
+}
+
+img,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* One focus style for everything keyboard-reachable. */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--at-focus-ring);
+  border-radius: var(--at-radius-xs);
+}
+
+::selection {
+  background: var(--at-primary);
+  color: var(--at-on-primary);
+}

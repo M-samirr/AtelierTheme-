@@ -1,181 +1,141 @@
-import React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
-import { renderToString } from 'react-dom/server';
-// Its theme translations are the real locale files (`tests/stubs/theme-translations.ts`).
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { ThemeLayout } from '../../../app/components/layout/ThemeLayout';
-import manifest from '../../../twilight.json';
+
+const state = vi.hoisted(() => ({
+  store: {} as Record<string, unknown>,
+  settings: {} as Record<string, unknown>,
+  isLoggedIn: false,
+}));
 
 vi.mock('@tanstack/react-router', () => ({
-  useRouterState: ({ select }: { select: (s: unknown) => unknown }) =>
-    select({ location: { pathname: '/ar' } }),
+  useRouterState: () => '/ar',
 }));
-const theme = vi.hoisted(() => ({ settings: {} as Record<string, unknown> }));
+vi.mock('../../../app/components/layout/Header', () => ({
+  Header: ({ onOpenNav }: { onOpenNav: () => void }) => (
+    <header data-testid="theme-header">
+      <button onClick={onOpenNav}>open nav</button>
+    </header>
+  ),
+}));
+vi.mock('../../../app/components/layout/Footer', () => ({
+  Footer: () => <footer data-testid="theme-footer" />,
+}));
+vi.mock('../../../app/components/layout/BottomBar', () => ({
+  BottomBar: () => <nav data-testid="bottom-bar" />,
+}));
+vi.mock('../../../app/components/layout/MobileNav', () => ({
+  default: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div data-testid="mobile-nav" /> : null),
+}));
 vi.mock('@salla.sa/twilight-theme-engine/providers', () => ({
-  useTwilight: () => ({ theme, store: {} }),
+  useTwilight: () => ({
+    store: state.store,
+    theme: { settings: state.settings },
+    currency: { code: 'SAR' },
+  }),
 }));
 vi.mock('@salla.sa/twilight-theme-engine/i18n', () => ({
-  useTranslation: () => ({ t: (_k: string, fb?: string) => fb ?? _k }),
+  useTranslation: () => ({
+    t: (_key: string, fallback?: string) => fallback ?? _key,
+    locale: 'ar',
+    isRTL: true,
+  }),
 }));
 vi.mock('@salla.sa/twilight-theme-engine/hooks/useUser', () => ({
-  useUser: () => ({ isLoggedIn: true }),
+  useUser: () => ({ isLoggedIn: state.isLoggedIn }),
 }));
-vi.mock('../../../app/components/layout/Footer', () => ({ Footer: () => <footer /> }));
-vi.mock('../../../app/components/layout/Header', () => ({ Header: () => null }));
-vi.mock('../../../app/components/layout/ImportantLinksSheet', () => ({
-  ImportantLinksSheet: () => null,
+vi.mock('@salla.sa/twilight-components-react/login-modal', () => ({
+  SallaLoginModal: () => <div data-testid="login-modal" />,
 }));
-vi.mock('../../../app/components/layout/MobileAccountSheet', () => ({
-  MobileAccountSheet: () => null,
+vi.mock('@salla.sa/twilight-components-react/scopes', () => ({
+  SallaScopes: (props: { selection: string }) => (
+    <div data-testid="scopes" data-selection={props.selection} />
+  ),
 }));
-vi.mock('../../../app/components/layout/MobileBottomBar', () => ({ MobileBottomBar: () => null }));
-vi.mock('../../../app/components/layout/MobilePageTitleBar', () => ({
-  MobilePageTitleBar: () => null,
+vi.mock('@salla.sa/twilight-components-react/offer-modal', () => ({
+  SallaOfferModal: () => <div data-testid="offer-modal" />,
+}));
+vi.mock('@salla.sa/twilight-components-react/localization-modal', () => ({
+  SallaLocalizationModal: (props: { language: string }) => (
+    <div data-testid="localization-modal" data-language={props.language} />
+  ),
 }));
 
-/**
- * A `salla.lang` stand-in. `subscribe` keeps the listener, as the SDK does, so
- * the test can fire it the way a translation pack loading would.
- */
-function installLang(messages: Record<string, string>) {
-  let listener: (() => void) | undefined;
-  const unsubscribe = vi.fn();
-  const lang = {
-    get: (key: string) => messages[key] ?? key,
-    add: vi.fn((key: string, values: Record<string, string>) => {
-      messages[key] = values.ar;
-    }),
-    subscribe: vi.fn((fn: () => void) => {
-      listener = fn;
-      return unsubscribe;
-    }),
-  };
-  (window as unknown as { salla: unknown }).salla = { lang };
-  return { lang, unsubscribe, packLoaded: () => listener?.() };
-}
-
-afterEach(() => {
-  cleanup();
-  delete (window as unknown as { salla?: unknown }).salla;
-});
-
-describe("ThemeLayout's component translations", () => {
-  it("adds the order options total from the locale files once the store's pack loads without it", () => {
-    const { lang, packLoaded } = installLang({});
-    render(<ThemeLayout>page</ThemeLayout>);
-
-    expect(lang.subscribe).toHaveBeenCalledTimes(1);
-    expect(lang.add).not.toHaveBeenCalled();
-
-    packLoaded();
-
-    expect(lang.add).toHaveBeenCalledWith('blocks.order_options.total', {
-      ar: 'الإجمالي',
-      en: 'Total',
-    });
-    expect(lang.get('blocks.order_options.total')).toBe('الإجمالي');
+describe('ThemeLayout', () => {
+  beforeEach(() => {
+    state.store = {};
+    state.settings = {};
+    state.isLoggedIn = false;
   });
 
-  it("keeps the store's own wording when its pack has the key", () => {
-    const { lang, packLoaded } = installLang({ 'blocks.order_options.total': 'المجموع' });
-    render(<ThemeLayout>page</ThemeLayout>);
-    packLoaded();
-
-    expect(lang.add).not.toHaveBeenCalledWith('blocks.order_options.total', expect.anything());
-    expect(lang.get('blocks.order_options.total')).toBe('المجموع');
+  it('frames the page: skip link, header, main landmark, footer', () => {
+    render(
+      <ThemeLayout>
+        <p>page</p>
+      </ThemeLayout>
+    );
+    expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveProperty(
+      'hash',
+      '#main-content'
+    );
+    expect(screen.getByTestId('theme-header')).toBeTruthy();
+    const main = screen.getByRole('main');
+    expect(main.id).toBe('main-content');
+    expect(main.textContent).toBe('page');
+    expect(screen.getByTestId('theme-footer')).toBeTruthy();
   });
 
-  it('stops listening when the layout unmounts', () => {
-    const { unsubscribe } = installLang({});
-    const { unmount } = render(<ThemeLayout>page</ThemeLayout>);
-    expect(unsubscribe).not.toHaveBeenCalled();
+  it('loads the mobile menu only once it is asked for', async () => {
+    render(<ThemeLayout>x</ThemeLayout>);
+    expect(screen.queryByTestId('mobile-nav')).toBeNull();
+    fireEvent.click(screen.getByText('open nav'));
+    expect(await screen.findByTestId('mobile-nav')).toBeTruthy();
+  });
 
+  it('honours the bottom bar setting, on by default', () => {
+    const { unmount } = render(<ThemeLayout>x</ThemeLayout>);
+    expect(screen.getByTestId('bottom-bar')).toBeTruthy();
     unmount();
-
-    expect(unsubscribe).toHaveBeenCalledTimes(1);
+    state.settings = { mobile_bottom_bar: false };
+    render(<ThemeLayout>x</ThemeLayout>);
+    expect(screen.queryByTestId('bottom-bar')).toBeNull();
   });
 
-  // An app snippet can insert next to `.store-footer` once the SDK is ready, which can be before
-  // a Suspense boundary around the footer hydrates: React #418, and the app's nodes dropped.
-  it('server-renders the footer outside any Suspense boundary, so it hydrates with the page', () => {
-    const html = renderToString(<ThemeLayout>page</ThemeLayout>);
-    expect(html).toMatch(/<\/main><footer><\/footer>/);
-  });
-
-  it('renders without the SDK, as on the server', () => {
-    const { getByText } = render(<ThemeLayout>page</ThemeLayout>);
-    expect(getByText('page')).toBeTruthy();
-  });
-});
-
-describe('ThemeLayout product card image ratio', () => {
-  afterEach(() => {
-    theme.settings = {};
-    cleanup();
-  });
-
-  const wrapper = (container: HTMLElement) => container.querySelector('.app-inner')!;
-
-  it('takes each shape the merchant setting offers', () => {
-    const setting = manifest.settings.find((item) => item.id === 'product_card_img_ratio') as {
-      options: { value: string }[];
-      selected: { value: string }[];
+  it('turns the shape and card settings into classes', () => {
+    state.settings = {
+      product_card_img_ratio: [{ value: 'square' }],
+      corner_style: 'sharp',
+      motion_enabled: false,
     };
-    expect(setting.selected[0].value).toBe('auto');
-    expect(setting.options.map((option) => option.value)).toEqual([
-      'auto',
-      'square',
-      'landscape',
-      'portrait',
-    ]);
-
-    for (const { value } of setting.options) {
-      // A saved dropdown arrives as `[{ value }]`.
-      theme.settings = { product_card_img_ratio: [{ value }] };
-      const { container, unmount } = render(<ThemeLayout />);
-      expect(wrapper(container).classList.contains(`product-card-img--${value}`)).toBe(true);
-      unmount();
-    }
+    const { container } = render(<ThemeLayout>x</ThemeLayout>);
+    const frame = container.querySelector('.app-inner');
+    expect(frame?.className).toContain('at-card-ratio--square');
+    expect(frame?.className).toContain('at-corners--sharp');
+    expect(frame?.className).toContain('at-no-motion');
   });
 
-  it('reads a plain string too', () => {
-    theme.settings = { product_card_img_ratio: 'portrait' };
-    const { container } = render(<ThemeLayout />);
-    expect(wrapper(container).classList.contains('product-card-img--portrait')).toBe(true);
-  });
-
-  it('is auto, the old Twig card, when the setting is missing or unknown', () => {
-    for (const settings of [{}, { product_card_img_ratio: 'round' }]) {
-      theme.settings = settings;
-      const { container, unmount } = render(<ThemeLayout />);
-      expect(wrapper(container).classList.contains('product-card-img--auto')).toBe(true);
-      unmount();
-    }
-  });
-});
-
-describe('ThemeLayout square photos image size', () => {
-  afterEach(() => {
-    theme.settings = {};
-    cleanup();
-  });
-
-  const hasCover = (settings: Record<string, unknown>) => {
-    theme.settings = settings;
-    const { container, unmount } = render(<ThemeLayout />);
-    const cover = container.querySelector('.app-inner')!.classList.contains('square-photos--cover');
+  it('mounts the offer modal always and the login modal only for guests', async () => {
+    const { unmount } = render(<ThemeLayout>x</ThemeLayout>);
+    expect(await screen.findByTestId('offer-modal')).toBeTruthy();
+    expect(await screen.findByTestId('login-modal')).toBeTruthy();
     unmount();
-    return cover;
-  };
 
-  it('shows the whole photo unless the merchant asks for cover', () => {
-    expect(hasCover({})).toBe(false);
-    expect(hasCover({ squar_photo_bg_image_size: 'contain' })).toBe(false);
-    expect(hasCover({ squar_photo_bg_image_size: [{ value: 'contain' }] })).toBe(false);
+    state.isLoggedIn = true;
+    render(<ThemeLayout>x</ThemeLayout>);
+    expect(await screen.findByTestId('offer-modal')).toBeTruthy();
+    expect(screen.queryByTestId('login-modal')).toBeNull();
   });
 
-  it('covers when the merchant asks for it, as a saved dropdown or a plain string', () => {
-    expect(hasCover({ squar_photo_bg_image_size: [{ value: 'cover' }] })).toBe(true);
-    expect(hasCover({ squar_photo_bg_image_size: 'cover' })).toBe(true);
+  it('mounts the language switcher and branch scopes only when the store has them', async () => {
+    const { unmount } = render(<ThemeLayout>x</ThemeLayout>);
+    await screen.findByTestId('offer-modal');
+    expect(screen.queryByTestId('localization-modal')).toBeNull();
+    expect(screen.queryByTestId('scopes')).toBeNull();
+    unmount();
+
+    state.store = { settings: { is_multilingual: true }, scope: { display_as: 'popup' } };
+    render(<ThemeLayout>x</ThemeLayout>);
+    expect((await screen.findByTestId('localization-modal')).dataset.language).toBe('ar');
+    expect((await screen.findByTestId('scopes')).dataset.selection).toBe('mandatory');
   });
 });

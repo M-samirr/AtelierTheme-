@@ -1,27 +1,30 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { useRouterState } from '@tanstack/react-router';
 import themeTranslations from 'virtual:twilight/theme-translations';
 import { useTwilight } from '@salla.sa/twilight-theme-engine/providers';
 import { useTranslation } from '@salla.sa/twilight-theme-engine/i18n';
 import { useUser } from '@salla.sa/twilight-theme-engine/hooks/useUser';
+import { BottomBar } from './BottomBar';
 import { Footer } from './Footer';
 import { Header } from './Header';
-import { ImportantLinksSheet } from './ImportantLinksSheet';
-import { MobileAccountSheet } from './MobileAccountSheet';
-import { MobileBottomBar } from './MobileBottomBar';
-import { MobilePageTitleBar } from './MobilePageTitleBar';
+import { useThemeSettings } from '../../hooks/useThemeSettings';
+import { cn } from '../../lib/cn';
 import { fillComponentTranslations, type ComponentLang } from '../../lib/componentTranslations';
+import { settingBoolean, settingChoice } from '../../lib/settings';
 
 /**
- * Theme layout — passed to `<TwilightProvider layout={ThemeLayout}>` in
- * `app/routes/__root.tsx` to swap in the rebuilt {@link Header} and the same
- * global modals (offer / login / scopes) as the engine's `MasterLayout`.
- *
- * `Footer` is a fork of the engine's (`./Footer`, see `FORKS.md`) for its contacts
- * column; `Header` is theme-owned since it's deeply specific to this theme's
- * nav/search/account UI.
+ * The page frame around every route, passed to `<TwilightProvider layout>`:
+ * the theme's header and footer, the mobile drawer and bottom bar, and the
+ * global modals. The modals mirror the engine's `MasterLayout` and must stay:
+ * without them login, offers, branch scopes and the language switcher stop
+ * working.
  */
+export interface ThemeLayoutProps {
+  children: ReactNode;
+}
+
+const MobileNav = lazy(() => import('./MobileNav'));
+
 const SallaLoginModal = lazy(() =>
   import('@salla.sa/twilight-components-react/login-modal').then((m) => ({
     default: m.SallaLoginModal,
@@ -43,41 +46,10 @@ const SallaLocalizationModal = lazy(() =>
   }))
 );
 
-export interface ThemeLayoutProps {
-  children: ReactNode;
-}
+const CARD_RATIOS = ['portrait', 'square', 'contain'] as const;
+const RADII = ['soft', 'sharp', 'round'] as const;
 
-const IMG_RATIOS = ['auto', 'square', 'landscape', 'portrait'] as const;
-type ImgRatio = (typeof IMG_RATIOS)[number];
-
-/**
- * Read the `product_card_img_ratio` dropdown setting (string, or `[{value}]`).
- * No value means `auto`, the old Twig card, so a store moving over keeps its look.
- */
-function productImageRatio(raw: unknown): ImgRatio {
-  const first = Array.isArray(raw) ? raw[0] : raw;
-  const value =
-    typeof first === 'string' ? first : (first as { value?: string } | undefined)?.value;
-  return (IMG_RATIOS as readonly string[]).includes(value ?? '') ? (value as ImgRatio) : 'auto';
-}
-
-/** Whether the merchant's `squar_photo_bg_image_size` dropdown asks for cover. */
-function squarePhotosCover(raw: unknown): boolean {
-  const first = Array.isArray(raw) ? raw[0] : raw;
-  const value =
-    typeof first === 'string' ? first : (first as { value?: string } | undefined)?.value;
-  return value === 'cover';
-}
-
-/**
- * The engine's shared modals ThemeLayout mounts globally, each gated on
- * whether the store actually needs it: the offer modal always, the
- * language / currency switcher only when the store has more than one of
- * either, the login modal only for a guest, scopes only when the store has
- * one. Split out from {@link ThemeLayout} itself so that component stays
- * about the page structure (header, footer, bottom bar, sheets) rather than
- * also carrying every modal's own gating condition.
- */
+/** The store-wide modals, each mounted only when the store needs it. */
 function GlobalModals() {
   const { store, currency } = useTwilight();
   const { locale } = useTranslation();
@@ -87,15 +59,12 @@ function GlobalModals() {
 
   return (
     <>
-      <Suspense>
+      <Suspense fallback={null}>
         <SallaOfferModal />
       </Suspense>
 
-      {/* Language / currency switcher — the header nav's sticky footer buttons
-          dispatch `localization::open`; mount the modal here since our Header
-          replaces the engine one that normally hosts it. */}
       {showLocalization && (
-        <Suspense>
+        <Suspense fallback={null}>
           <SallaLocalizationModal
             language={locale}
             currency={currency?.code || 'SAR'}
@@ -105,7 +74,7 @@ function GlobalModals() {
       )}
 
       {!isLoggedIn && (
-        <Suspense>
+        <Suspense fallback={null}>
           <SallaLoginModal
             isEmailAllowed={store?.settings?.auth?.email_allowed}
             isMobileAllowed={store?.settings?.auth?.mobile_allowed}
@@ -115,7 +84,7 @@ function GlobalModals() {
       )}
 
       {store?.scope && (
-        <Suspense>
+        <Suspense fallback={null}>
           <SallaScopes
             selection={store?.scope?.display_as === 'popup' ? 'mandatory' : 'optional'}
             suppressHydrationWarning
@@ -127,81 +96,60 @@ function GlobalModals() {
 }
 
 export function ThemeLayout({ children }: ThemeLayoutProps) {
-  const { theme } = useTwilight();
-  // Owned here so the header's nav drawer and the mobile bottom bar's Categories
-  // tab drive the same slide-in panel.
+  const { t } = useTranslation();
   const [navOpen, setNavOpen] = useState(false);
-  // The mobile bottom bar's My Account tab opens this sheet (the customer's
-  // links, settings, contacts and the footer widgets, which the page footer
-  // doesn't show on mobile).
-  const [accountOpen, setAccountOpen] = useState(false);
-  // Its own "Important links" row opens this one in turn -- a second
-  // full-screen sheet for the footer menu, not a drill-in within the first.
-  const [importantLinksOpen, setImportantLinksOpen] = useState(false);
+  // The drawer's code loads the first time it is asked for, then stays mounted.
+  const [navRequested, setNavRequested] = useState(false);
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const settings = useThemeSettings();
+  const showBottomBar = settingBoolean(settings.mobile_bottom_bar, true);
+  const cardRatio = settingChoice(settings.product_card_img_ratio, CARD_RATIOS, 'portrait');
+  const radius = settingChoice(settings.corner_style, RADII, 'soft');
+  const motion = settingBoolean(settings.motion_enabled, true);
 
-  // Close every sheet/drawer on any route change — a bottom-bar tab (Home,
-  // Cart) or a link inside one of them navigates without touching their own
-  // state, so they would otherwise stay open over the new page.
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
   useEffect(() => {
     setNavOpen(false);
-    setAccountOpen(false);
-    setImportantLinksOpen(false);
   }, [pathname]);
 
-  // Fill the web components' strings the store's pack lacks from the theme's
-  // locale files, each time a pack loads (`subscribe` also runs at once when one already has).
+  // Strings the `<salla-*>` components read from `salla.lang` but some store packs lack.
   useEffect(() => {
     const lang = window.salla?.lang as
-      | (ComponentLang & { subscribe?: (fn: () => void) => () => void })
-      | undefined;
+      (ComponentLang & { subscribe?: (fn: () => void) => () => void }) | undefined;
     if (typeof lang?.subscribe !== 'function' || typeof lang.add !== 'function') return;
     return lang.subscribe(() => fillComponentTranslations(lang, themeTranslations));
   }, []);
 
-  const imgRatio = productImageRatio(theme?.settings?.product_card_img_ratio);
-  const squarePhotos = squarePhotosCover(theme?.settings?.squar_photo_bg_image_size)
-    ? ' square-photos--cover'
-    : '';
+  const openNav = () => {
+    setNavRequested(true);
+    setNavOpen(true);
+  };
 
   return (
     <>
+      <a href="#main-content" className="at-skip-link">
+        {t('common.a11y.skip_to_content', 'Skip to content')}
+      </a>
       <div
-        className={`app-inner flex flex-col min-h-full product-card-img--${imgRatio}${squarePhotos}`}
+        className={cn(
+          'app-inner flex min-h-full flex-col',
+          `at-card-ratio--${cardRatio}`,
+          `at-corners--${radius}`,
+          !motion && 'at-no-motion'
+        )}
         suppressHydrationWarning
       >
-        <Header navOpen={navOpen} onNavOpenChange={setNavOpen} />
-        <MobilePageTitleBar />
+        <Header onOpenNav={openNav} />
         <main id="main-content" className="flex-1">
           {children}
         </main>
-        {/* Not in a Suspense boundary, so the footer hydrates with the page. App snippets run
-            once the SDK is ready, which can be before a boundary hydrates, and some insert next
-            to `.store-footer` (a "recently viewed" section on agran): inside a boundary still
-            waiting, React found their nodes, failed to hydrate (React #418) and dropped them. */}
         <Footer />
-        <MobileBottomBar
-          navOpen={navOpen}
-          onOpenNav={() => setNavOpen(true)}
-          onCloseNav={() => setNavOpen(false)}
-          accountOpen={accountOpen}
-          onAccountOpenChange={setAccountOpen}
-          secondSheetOpen={importantLinksOpen}
-          onCloseSecondSheet={() => setImportantLinksOpen(false)}
-        />
+        {showBottomBar && <BottomBar navOpen={navOpen} onOpenNav={openNav} />}
       </div>
-
-      <MobileAccountSheet
-        open={accountOpen}
-        onClose={() => setAccountOpen(false)}
-        onOpenImportantLinks={() => {
-          setAccountOpen(false);
-          setImportantLinksOpen(true);
-        }}
-      />
-
-      <ImportantLinksSheet open={importantLinksOpen} onClose={() => setImportantLinksOpen(false)} />
-
+      {navRequested && (
+        <Suspense fallback={null}>
+          <MobileNav isOpen={navOpen} onClose={() => setNavOpen(false)} />
+        </Suspense>
+      )}
       <GlobalModals />
     </>
   );

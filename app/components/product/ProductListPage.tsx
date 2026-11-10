@@ -1,426 +1,118 @@
-import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react';
-import { HookSlot } from '@salla.sa/twilight-theme-engine/hooks';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { HookSlot } from '@salla.sa/twilight-theme-engine/hooks/HookSlot';
 import { useStore } from '@salla.sa/twilight-theme-engine/hooks/useStore';
 import { useTranslation } from '@salla.sa/twilight-theme-engine/i18n';
-import { useNavigate, useLocation, useTwilight } from '@salla.sa/twilight-theme-engine/providers';
-import { sortOptions, onSallaEvent } from '@salla.sa/twilight-theme-engine/utils';
-import {
-  Breadcrumb,
-  NoContent,
-  ProductCardSkeleton,
-  Image,
-  RenderWhenVisible,
-} from '@salla.sa/twilight-theme-engine/common';
-import { SallaFilters } from '@salla.sa/twilight-components-react/filters';
-import {
-  ItemsList,
-  ReviewItemSkeleton,
-  type ItemsLoaderFn,
-} from '@salla.sa/twilight-components-react';
+import { useLocation, useNavigate } from '@salla.sa/twilight-theme-engine/providers';
+import { availableSortIds, sortOptions } from '@salla.sa/twilight-theme-engine/utils/sort-options';
+import { onSallaEvent, whenSallaReady } from '@salla.sa/twilight-theme-engine/utils';
+import { Breadcrumb, Image, RenderWhenVisible } from '@salla.sa/twilight-theme-engine/common';
+import { Drawer } from '@salla.sa/twilight-theme-engine/drawer';
 import { Testimonials, useReorderButtons } from '@salla.sa/twilight-theme-engine/home';
-import { product, parseNextPageToken } from '@salla.sa/twilight-theme-engine/api/product';
-import type { ProductListLoaderData } from '@salla.sa/twilight-theme-engine/routes/product-listing';
-import type { Product } from '@salla.sa/twilight-theme-engine/types';
-import { ProductCard } from './ProductCard';
-import { useAppliedFilters } from '@salla.sa/twilight-theme-engine/routes/product-listing';
-import type { ProductListFilters } from '@salla.sa/twilight-theme-engine/api/product';
-import { BlockHookSlot, BottomSheet } from '../common';
-import { useAppSafeAreaTop } from '../../hooks/useAppSafeAreaTop';
-import { useProductCardLayout } from '../../hooks/useProductCardLayout';
-import { useScrollDirection } from '../../hooks/useScrollDirection';
-import { dispatchProductsFetched } from '../../lib/productsFetched';
 import {
-  ChevronDownIcon,
-  DashboardSquare01Icon,
-  FilterHorizontalIcon,
-  RightToLeftListBulletIcon,
-} from '../icons';
+  parseNextPageToken,
+  product as productApi,
+} from '@salla.sa/twilight-theme-engine/api/product';
+import {
+  useAppliedFilters,
+  type ProductListLoaderData,
+} from '@salla.sa/twilight-theme-engine/routes/product-listing';
+import type { Category, Product } from '@salla.sa/twilight-theme-engine/types';
+import { SallaFilters } from '@salla.sa/twilight-components-react/filters';
+import { ItemsList, ReviewItemSkeleton } from '@salla.sa/twilight-components-react';
+import { ProductCard } from './ProductCard';
+import { CardSkeleton } from '../common';
+import { Button, EmptyState, ErrorState } from '../ui';
+import { useThemeSettings } from '../../hooks/useThemeSettings';
+import { cn } from '../../lib/cn';
+import { settingChoice, settingNumber } from '../../lib/settings';
+import { plainText } from '../../lib/text';
 
 type View = 'grid' | 'list';
 
-/** localStorage-backed toolbar preference, read after mount to avoid SSR mismatch. */
-function usePref<T extends string>(
-  key: string,
-  values: readonly T[],
-  initial: T
-): [T, (v: T) => void] {
-  const [value, setValue] = useState<T>(initial);
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(key) as T | null;
-      // This fills the hook's own state from localStorage; no parent is
-      // involved: see .react-doctor/false-positives.md.
-      // react-doctor-disable-next-line react-doctor/no-pass-data-to-parent
-      // A new key (or default) with nothing stored goes back to the default.
-      setValue(stored && values.includes(stored) ? stored : initial);
-    } catch {
-      setValue(initial);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, initial]);
-  const set = useCallback(
-    (v: T) => {
-      setValue(v);
-      try {
-        window.localStorage.setItem(key, v);
-      } catch {
-        /* private mode */
-      }
-    },
-    [key]
-  );
-  return [value, set];
+const VIEWS = ['grid', 'list'] as const;
+const FILTER_POSITIONS = ['sidebar', 'drawer'] as const;
+const VIEW_STORAGE_KEY = 'atelier:catalog-view';
+const WITH_FILTERS_SIZES = '(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw';
+
+interface BrandEntity {
+  name: string;
+  logo?: string;
+  banner?: string | null;
+  description?: string;
 }
 
-/** `ItemsList`'s `loader` for infinite scroll - the route already loaded the
- * first page, so this fetches subsequent ones from `pagination.next`, which
- * `parseNextPageToken` reads as either a bare cursor token or (sources
- * without true cursor pagination, e.g. `offers`) a full next-page URL. */
-function useCatalogLoader(
-  source: ProductListLoaderData['source'],
-  selectedSort: string,
-  next: string | null | undefined,
-  filters: ProductListFilters | null
-): ItemsLoaderFn<Product> {
-  const nextCursorRef = useRef<string | null>(next ?? null);
-  useEffect(() => {
-    nextCursorRef.current = next ?? null;
-  }, [next]);
+function readStoredView(): View | null {
+  try {
+    const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
+    return stored === 'grid' || stored === 'list' ? stored : null;
+  } catch {
+    return null;
+  }
+}
 
-  return useCallback(async () => {
-    const { cursor, page } = parseNextPageToken(nextCursorRef.current);
-    const result = await product.list({
+function storeView(view: View) {
+  try {
+    window.localStorage.setItem(VIEW_STORAGE_KEY, view);
+  } catch {
+    // Private mode: the choice lasts for this page only.
+  }
+}
+
+/** Reports a loaded page to the store's analytics, as the engine's own list page does. */
+function reportProductsFetched(
+  list: { items: Product[]; next: string | null },
+  source: ProductListLoaderData['source']
+) {
+  whenSallaReady((sdk) =>
+    sdk.event.dispatch('salla-products-list::products.fetched', {
+      data: list.items,
+      cursor: { next: list.next },
+      nextPage: list.next,
       source: source.type,
       sourceValue: source.value,
-      ...(cursor && { cursor }),
-      ...(page !== undefined && { page }),
-      sort: selectedSort,
-      ...(filters && { filterable: true, filters }),
-    });
-    nextCursorRef.current = result.next;
-    dispatchProductsFetched(result, source);
-    return result;
-  }, [source, selectedSort, filters]);
+    })
+  );
 }
 
-type BrandEntity = { name: string; banner?: string; logo?: string; description?: string };
-
-/** Banner + logo + description above the listing, for a `/brands/{id}` page. Renders
- * nothing for any other source type. */
-function BrandHeader({ source }: { source: ProductListLoaderData['source'] }) {
-  if (source.type !== 'brands') return null;
-  const brand = source.entity as BrandEntity | undefined;
-  if (!brand) return null;
-
+function ListingHero({
+  title,
+  description,
+  image,
+  logo,
+}: {
+  title: string;
+  description?: string;
+  image?: string | null;
+  logo?: string;
+}) {
   return (
-    <>
-      <Image
-        width={1200}
-        height={300}
-        className="w-full max-h-[300px] object-cover rounded bg-gray-100"
-        src={brand.banner || undefined}
-        alt={brand.name}
-        priority
-      />
-      <header className="flex flex-col md:flex-row items-center md:items-start text-center rtl:md:text-right ltr:md:text-left mt-2 mb-8">
+    <header className={cn('at-listing-hero', image && 'at-listing-hero--image')}>
+      {image && (
         <Image
-          className="rounded w-40 h-24 object-contain shadow-md p-4 bg-white shrink-0"
-          src={brand.logo || undefined}
-          alt={brand.name}
-          aspectRatio="5/3"
-        />
-        <div className="px-5 pt-3 rtl:text-right">
-          <h1 className="text-2xl font-bold mb-1">{brand.name}</h1>
-          {brand.description && (
-            <p
-              className="text-base text-gray-500 font-medium"
-              dangerouslySetInnerHTML={{ __html: brand.description }}
-            />
-          )}
-        </div>
-      </header>
-    </>
-  );
-}
-
-/** The mobile title bar's height (`.mobile-page-title`, `h-12`); the toolbar pins below it. */
-const TITLE_BAR_PX = 48;
-
-/**
- * On phones the toolbar pins under the sticky title bar once it scrolls up to
- * it (`is-stuck`), slides out of view while the page scrolls down and back in
- * when it scrolls up (`is-hidden`). In its own place on the page it never
- * hides. A zero-height sentinel above it tells when it is pinned, as in
- * `Header.tsx`. Styling: `04-components/product-list.scss`; desktop keeps the
- * plain toolbar.
- */
-function MobileStickyToolbar({ children }: { children: ReactNode }) {
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  // Inside the Salla app the title bar sits below the status bar.
-  const safeTop = useAppSafeAreaTop();
-  const direction = useScrollDirection();
-  const [stuck, setStuck] = useState(false);
-
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || typeof IntersectionObserver === 'undefined') return;
-    const top = safeTop + TITLE_BAR_PX;
-    const observer = new IntersectionObserver(
-      // Out of view above the pin line, not below the fold.
-      ([entry]) => setStuck(!entry.isIntersecting && entry.boundingClientRect.top < top),
-      { threshold: 0, rootMargin: `-${top}px 0px 0px 0px` }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [safeTop]);
-
-  const className = [
-    's-catalog-toolbar-sticky',
-    stuck && 'is-stuck',
-    stuck && direction === 'down' && 'is-hidden',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  return (
-    <>
-      <div ref={sentinelRef} aria-hidden="true" />
-      <div className={className}>{children}</div>
-    </>
-  );
-}
-
-/** Filter show/hide (desktop toggle + mobile trigger) at the start, grid/list
- * switch + sort select at the end. */
-function CatalogToolbar({
-  showFilters,
-  filtersHidden,
-  onToggleFiltersHidden,
-  onOpenMobileFilters,
-  view,
-  onViewChange,
-  selectedSort,
-  sortOptionsWithTrans,
-  currentSortLabel,
-  onSortChange,
-}: {
-  showFilters: boolean;
-  filtersHidden: '0' | '1';
-  onToggleFiltersHidden: () => void;
-  onOpenMobileFilters: () => void;
-  view: View;
-  onViewChange: (view: View) => void;
-  selectedSort: string;
-  sortOptionsWithTrans: ReturnType<typeof sortOptions>;
-  currentSortLabel: string | undefined;
-  onSortChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <div className="s-catalog-toolbar">
-      {showFilters && (
-        <div className="s-catalog-toolbar__group s-catalog-toolbar__filters">
-          <button
-            type="button"
-            className="s-catalog-toolbar__filters-toggle hidden md:inline-flex"
-            aria-pressed={filtersHidden === '1'}
-            onClick={onToggleFiltersHidden}
-          >
-            <FilterHorizontalIcon aria-hidden="true" />
-            {filtersHidden === '1'
-              ? t('blocks.catalog.show_filters', 'Show filters')
-              : t('blocks.catalog.hide_filters', 'Hide filters')}
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenMobileFilters}
-            className="s-catalog-toolbar__filters-trigger md:hidden"
-            aria-label={t('pages.categories.filters', 'Filters')}
-          >
-            <FilterHorizontalIcon aria-hidden="true" />
-          </button>
-        </div>
-      )}
-
-      <div className="s-catalog-toolbar__group s-catalog-toolbar__options">
-        <div
-          className="s-catalog-toolbar__views"
-          role="group"
-          aria-label={t('blocks.catalog.view', 'View')}
-        >
-          <button
-            type="button"
-            aria-pressed={view === 'grid'}
-            aria-label={t('blocks.catalog.view_grid', 'Grid view')}
-            onClick={() => onViewChange('grid')}
-          >
-            <DashboardSquare01Icon aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-pressed={view === 'list'}
-            aria-label={t('blocks.catalog.view_list', 'List view')}
-            onClick={() => onViewChange('list')}
-          >
-            <RightToLeftListBulletIcon aria-hidden="true" />
-          </button>
-        </div>
-
-        {sortOptionsWithTrans.length > 0 && (
-          <label className="s-catalog-toolbar__sort">
-            <span className="s-catalog-toolbar__sort-label">
-              {t('pages.categories.sorting', 'Sort By')}: <b>{currentSortLabel}</b>
-            </span>
-            <ChevronDownIcon aria-hidden="true" />
-            <select value={selectedSort} onChange={onSortChange}>
-              {sortOptionsWithTrans.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** The desktop filter column (when visible) + the product grid/list itself. */
-function CatalogGrid({
-  filtersVisible,
-  filters,
-  listKey,
-  selectedSort,
-  view,
-  products,
-  pagination,
-  loader,
-  listLayoutClass,
-  wideGridClass,
-  filterStatus,
-  onRetry,
-}: {
-  filterStatus: 'idle' | 'loading' | 'ready' | 'error';
-  onRetry: () => void;
-  filtersVisible: boolean;
-  filters: ProductListLoaderData['filters'];
-  listKey: string;
-  selectedSort: string;
-  view: View;
-  products: Product[];
-  pagination: ProductListLoaderData['pagination'];
-  loader: ItemsLoaderFn<Product>;
-  listLayoutClass: string;
-  wideGridClass: string;
-}) {
-  const { t } = useTranslation();
-  const location = useLocation();
-
-  return (
-    <div className={filtersVisible ? 'md:grid md:grid-cols-[288px_1fr] gap-8' : ''}>
-      {filtersVisible && (
-        <SallaFilters
-          id="filters-menu"
-          className="hidden md:block lg:sticky lg:top-20"
-          filters={filters as never}
+          className="at-listing-hero__img"
+          src={image}
+          alt=""
+          width={1280}
+          srcSetWidths={[640, 1080, 1600]}
+          sizes="100vw"
+          priority
         />
       )}
-
-      <div className="min-w-0">
-        <HookSlot name="product:list.items.start" />
-        {/* legacy name for the same point */}
-        <HookSlot name="product:index.items.start" />
-
-        <div
-          className={`flex min-h-screen${filterStatus === 'loading' ? ' opacity-60' : ''}`}
-          aria-busy={filterStatus === 'loading'}
-        >
-          {filterStatus === 'error' ? (
-            <div className="flex min-w-0 flex-1 flex-col items-center">
-              <NoContent
-                icon="sicon-shopping-bag"
-                message={t('common.errors.error_occurred', 'Something went wrong')}
-              />
-              <button
-                type="button"
-                data-testid="store-catalog-filters-retry"
-                className="link--primary mt-4"
-                onClick={onRetry}
-              >
-                {t('common.elements.try_again', 'Try again')}
-              </button>
-            </div>
-          ) : (
-            <ItemsList<Product>
-              key={`${listKey}-${selectedSort}-${view}`}
-              resetKey={`${listKey}-${selectedSort}-${view}`}
-              items={products}
-              loader={loader}
-              mode={pagination?.next ? 'infinite' : 'static'}
-              pageUrl={location.pathname + location.searchStr}
-              className="s-products-list flex-1 min-w-0"
-              itemsClassName={`s-products-list-wrapper ${listLayoutClass}${filtersVisible ? ' s-products-list-with-filters' : ''}${wideGridClass}`}
-              skeleton={<ProductCardSkeleton />}
-              skeletonType="item"
-              skeletonCount={12}
-              empty={
-                <NoContent
-                  icon="sicon-shopping-bag"
-                  message={t('pages.categories.no_products', 'No products found in this category')}
-                />
-              }
-              t={(key, fallback) => t(key, fallback || key)}
-            >
-              {(items) =>
-                items.map((prod, idx) => (
-                  <ProductCard
-                    key={prod.id}
-                    product={prod}
-                    index={idx}
-                    layout={view === 'list' ? 'horizontal' : 'vertical'}
-                  />
-                ))
-              }
-            </ItemsList>
-          )}
-        </div>
-
-        {/* legacy name for the same point */}
-        <HookSlot name="product:index.items.end" />
-        <HookSlot name="product:list.items.end" />
+      <div className="at-listing-hero__copy">
+        {logo && <Image src={logo} alt="" width={120} height={64} objectFit="contain" />}
+        <h1 id="page-main-title">{title}</h1>
+        {description && <p>{description}</p>}
       </div>
-    </div>
-  );
-}
-
-/** The store-reviews block below the listing — categories only, and only when
- * the merchant has enabled it. */
-function CategoryTestimonials({ enabled }: { enabled: boolean }) {
-  if (!enabled) return null;
-
-  return (
-    // `estimatedHeight="0"`: `RenderWhenVisible` hard-codes `min-height` on
-    // its wrapper and never clears it, so an empty `salla-reviews` (no
-    // category reviews) reserves 400px. It's collapsed by CSS when empty.
-    <RenderWhenVisible estimatedHeight="0px" placeholder={<ReviewItemSkeleton />}>
-      <Testimonials data={{}} />
-    </RenderWhenVisible>
+    </header>
   );
 }
 
 /**
- * Theme fork of the engine `ProductListPage`, registered as `product:list-page`
- * in `app/router.tsx` for every product listing.
- *
- * Same data flow as upstream; the toolbar is rebuilt as a pill with a product
- * count, a grid / list view switch and a styled sort control, plus a desktop
- * "hide filters" toggle that collapses the filter column. View + collapse state
- * persist in `localStorage`. Upgrade notes: `FORKS.md`.
+ * Every product list: category, brand, tag, search, offers and order-again.
+ * Fork of the engine's `ProductListPage` (see FORKS.md): same data flow,
+ * filters, sorting, infinite scroll and hook slots, with the theme's header,
+ * toolbar, grid/list views and states.
  */
-
 export function ProductListPage({
   page,
   source,
@@ -431,32 +123,48 @@ export function ProductListPage({
 }: ProductListLoaderData) {
   const { t } = useTranslation();
   const store = useStore();
-  const { theme } = useTwilight();
   const navigate = useNavigate();
   const location = useLocation();
+  const settings = useThemeSettings();
+
+  const defaultView = settingChoice(settings.catalog_default_view, VIEWS, 'grid');
+  const [view, setView] = useState<View>(defaultView);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filterPosition = settingChoice(
+    settings.catalog_filters_position,
+    FILTER_POSITIONS,
+    'sidebar'
+  );
+  const columns = settingNumber(settings.catalog_columns, 4, { min: 2, max: 5 });
+
+  const showFilters = Boolean(query.filters && store?.settings?.product?.filters);
+  const inSidebar = showFilters && filterPosition === 'sidebar';
+  const isReorder = source.type === 'reorder';
+  useReorderButtons(isReorder);
+
+  // Read after mount: the server cannot know the visitor's stored choice.
+  useEffect(() => {
+    const stored = readStoredView();
+    if (stored) setView(stored);
+  }, []);
+
+  useEffect(() => onSallaEvent('salla-filters::changed', () => setFiltersOpen(false)), []);
 
   const selectedSort = query.sort;
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  // The merchant's card layout picks the view until the visitor switches it.
-  // The visitor's choice is kept per layout, so changing the setting applies
-  // again, also live in the theme editor.
-  const cardLayout = useProductCardLayout();
-  const [view, setView] = usePref<View>(
-    `catalog-view-${cardLayout}`,
-    ['grid', 'list'],
-    cardLayout === 'horizontal' ? 'list' : 'grid'
-  );
-  const [filtersHidden, setFiltersHidden] = usePref<'0' | '1'>(
-    'catalog-filters-hidden',
-    ['0', '1'],
-    '0'
+  const sortIds = availableSortIds(source.type, store?.settings?.product?.sort_options);
+  const sorts = useMemo(() => sortOptions(selectedSort, t, sortIds), [selectedSort, t, sortIds]);
+  const shownSort = sorts.some((option) => option.is_selected) ? selectedSort : '';
+
+  const onSortChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const params = new URLSearchParams(location.searchStr);
+      params.set('sort', event.target.value);
+      params.delete('page');
+      navigate(`${location.pathname}?${params.toString()}`);
+    },
+    [navigate, location.pathname, location.searchStr]
   );
 
-  const showFilters = !!(query.filters && store?.settings?.product?.filters);
-  const filtersVisible = showFilters && filtersHidden === '0';
-
-  // The selection made in `<salla-filters>` — re-queries the list (the route's
-  // loader output was fetched without it).
   const {
     filters: appliedFilters,
     page: filteredPage,
@@ -464,9 +172,7 @@ export function ProductListPage({
     status: filterStatus,
     retry: retryFilters,
   } = useAppliedFilters(source, selectedSort, showFilters);
-  // While a new selection loads, the previous page stays up (dimmed, `aria-busy`); if the
-  // request fails nothing stale passes for the new selection. Infinite scroll is only live
-  // for the loader's own page or a fully loaded filtered one.
+
   const shownPage = filterStatus === 'ready' ? filteredPage : lastPage;
   const shownProducts =
     filterStatus === 'error'
@@ -480,137 +186,243 @@ export function ProductListPage({
       : filterStatus === 'ready'
         ? filteredPage?.next
         : null;
+
+  const nextCursorRef = useRef<string | null>(shownNext ?? null);
+  useEffect(() => {
+    nextCursorRef.current = shownNext ?? null;
+  }, [shownNext]);
+
+  const loader = useCallback(async () => {
+    const { cursor, page: nextPage } = parseNextPageToken(nextCursorRef.current);
+    const result = await productApi.list({
+      source: source.type,
+      sourceValue: source.value,
+      ...(cursor && { cursor }),
+      ...(nextPage !== undefined && { page: nextPage }),
+      sort: selectedSort,
+      ...(appliedFilters && { filterable: true, filters: appliedFilters }),
+    });
+    nextCursorRef.current = result.next;
+    reportProductsFetched(result, source);
+    return result;
+  }, [source, selectedSort, appliedFilters]);
+
+  const chooseView = (next: View) => {
+    setView(next);
+    storeView(next);
+  };
+
+  const listKey = source.value ?? source.type;
   const filteredKey =
     filterStatus === 'idle'
       ? ''
-      : `${filterStatus}${filterStatus === 'ready' ? JSON.stringify(appliedFilters) : ''}`;
+      : `-${filterStatus}${filterStatus === 'ready' ? JSON.stringify(appliedFilters) : ''}`;
+  const itemsKey = `${listKey}-${selectedSort}${filteredKey}`;
 
   const isBrand = source.type === 'brands';
-  const isReorder = source.type === 'reorder';
-  useReorderButtons(isReorder);
-
-  const sortOptionsWithTrans = useMemo(() => sortOptions(selectedSort, t), [selectedSort, t]);
-  const currentSortLabel =
-    sortOptionsWithTrans.find((o) => o.id === selectedSort)?.name ?? sortOptionsWithTrans[0]?.name;
-
-  useEffect(() => {
-    const handleFiltersChanged = () => setFiltersOpen(false);
-    return onSallaEvent('salla-filters::changed', handleFiltersChanged);
-  }, []);
-
-  const handleSortChange = useCallback(
-    (event: React.ChangeEvent<HTMLSelectElement>) => {
-      // `location.pathname` (not `window.location.pathname`) — the router
-      // already strips the store's username/locale base off it and re-adds
-      // its own when navigating, so passing the raw browser path here
-      // doubles it up (`/store/ar/store/ar/...`) and 404s.
-      const params = new URLSearchParams(location.searchStr);
-      params.set('sort', event.target.value);
-      params.delete('page');
-      const search = params.toString();
-      navigate(location.pathname + (search ? `?${search}` : ''));
-    },
-    [navigate, location.pathname, location.searchStr]
-  );
-
-  const listKey = source.value ?? source.type;
-  // Merchant blocks go on category pages only, as in Twig; offers, search and brands get none.
-  const blockScope = useMemo(
-    () =>
-      source.type === 'categories' && source.value ? { category_id: source.value } : undefined,
-    [source.type, source.value]
-  );
-  const loader = useCatalogLoader(source, selectedSort, shownNext, appliedFilters);
-
-  const listLayoutClass =
-    view === 'list' ? 's-products-list-horizontal-cards' : 's-products-list-vertical-cards';
-  // Offers (and other filter-less lists) get the full row: 5 columns on desktop.
-  const wideGridClass = !query.filters && view === 'grid' ? ' s-products-list-cols-5' : '';
+  const isSearch = source.type === 'search';
+  const brand = isBrand ? (source.entity as BrandEntity | undefined) : undefined;
+  const category =
+    source.type === 'categories' ? (source.entity as Category | undefined) : undefined;
+  const heroImage = brand?.banner ?? category?.image;
+  const heroText = plainText(brand?.description ?? category?.description);
 
   return (
-    <div
-      key={listKey}
-      className="container px-2.5 mb-10"
-      data-source={isReorder ? 'reorder' : undefined}
-    >
-      {theme?.settings?.product_index_show_breadcrumbs !== false && <Breadcrumb page={page} />}
-
-      <BrandHeader source={source} />
-
-      <HookSlot name="product:list.start" />
-
-      {/* App-block hook `product.index.before_products_group_with_filter` — above the listing */}
-      <BlockHookSlot
-        name="product.index.before_products_group_with_filter"
-        wrapper="s-before-products-list"
-        className="!mt-0"
-        scope={blockScope}
-      />
-
-      <h1 className="font-bold text-xl mb-4" id="page-main-title">
-        {isBrand ? t('common.titles.products') : page.title}
-      </h1>
-
-      {/* Toolbar — one bar: filter show/hide at the start, options at the end */}
-      <MobileStickyToolbar>
-        <CatalogToolbar
-          showFilters={showFilters}
-          filtersHidden={filtersHidden}
-          onToggleFiltersHidden={() => setFiltersHidden(filtersHidden === '1' ? '0' : '1')}
-          onOpenMobileFilters={() => setFiltersOpen(true)}
-          view={view}
-          onViewChange={setView}
-          selectedSort={selectedSort}
-          sortOptionsWithTrans={sortOptionsWithTrans}
-          currentSortLabel={currentSortLabel}
-          onSortChange={handleSortChange}
+    <div key={listKey} data-source={isReorder ? 'reorder' : undefined}>
+      <div className="at-container">
+        {settings.product_index_show_breadcrumbs !== false && (
+          <Suspense fallback={<div className="at-breadcrumb-space" />}>
+            <Breadcrumb page={page} />
+          </Suspense>
+        )}
+        <ListingHero
+          title={brand?.name ?? page.title}
+          description={heroText}
+          image={heroImage}
+          logo={brand?.logo}
         />
-      </MobileStickyToolbar>
+      </div>
 
-      <CatalogGrid
-        filtersVisible={filtersVisible}
-        filters={filters}
-        listKey={`${listKey}${filteredKey}`}
-        filterStatus={filterStatus}
-        onRetry={retryFilters}
-        selectedSort={selectedSort}
-        view={view}
-        products={shownProducts}
-        pagination={{ next: shownNext ?? null }}
-        loader={loader}
-        listLayoutClass={listLayoutClass}
-        wideGridClass={wideGridClass}
-      />
+      <div className="at-container at-listing">
+        <HookSlot name="product:list.start" />
 
-      {/* App-block hook `product.index.after_products_group_with_filter` — below the listing */}
-      <BlockHookSlot
-        name="product.index.after_products_group_with_filter"
-        wrapper="s-after-products-list"
-        scope={blockScope}
-      />
+        <div className="at-toolbar">
+          <div className="at-toolbar__group">
+            {showFilters && (
+              <Button
+                variant="outline"
+                size="sm"
+                icon="sicon-filter"
+                className={cn(inSidebar && 'at-toolbar__filters--mobile')}
+                onClick={() => setFiltersOpen(true)}
+              >
+                {t('theme.catalog.filters', 'Filters')}
+              </Button>
+            )}
+          </div>
+          <div className="at-toolbar__group">
+            {sorts.length > 0 && (
+              <label className="at-toolbar__sort">
+                <span>{t('theme.catalog.sort_by', 'Sort by')}</span>
+                <select
+                  className="at-select"
+                  aria-label={t('theme.catalog.sort_by', 'Sort by')}
+                  value={shownSort}
+                  onChange={onSortChange}
+                >
+                  {shownSort === '' && (
+                    <option value="" disabled hidden>
+                      {t('theme.catalog.sort_by', 'Sort by')}
+                    </option>
+                  )}
+                  {sorts.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <div
+              className="at-toolbar__views"
+              role="group"
+              aria-label={t('theme.catalog.view', 'View')}
+            >
+              <button
+                type="button"
+                className={cn('at-icon-btn', view === 'grid' && 'is-active')}
+                aria-label={t('theme.catalog.grid_view', 'Grid view')}
+                aria-pressed={view === 'grid'}
+                onClick={() => chooseView('grid')}
+              >
+                <i className="sicon-grid" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className={cn('at-icon-btn', view === 'list' && 'is-active')}
+                aria-label={t('theme.catalog.list_view', 'List view')}
+                aria-pressed={view === 'list'}
+                onClick={() => chooseView('list')}
+              >
+                <i className="sicon-list" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        </div>
 
-      {showFilters && (
-        <BottomSheet
-          open={filtersOpen}
-          onClose={() => setFiltersOpen(false)}
-          title={t('pages.categories.filters', 'Filters')}
-        >
-          <SallaFilters id="filters-menu-mobile" filters={filters as never} />
-        </BottomSheet>
-      )}
+        <div className={cn('at-listing__layout', inSidebar && 'at-listing__layout--sidebar')}>
+          {inSidebar && (
+            <aside className="at-listing__filters">
+              <SallaFilters id="filters-menu" filters={filters as never} />
+            </aside>
+          )}
 
-      <CategoryTestimonials
-        enabled={source.type === 'categories' && !!store?.settings?.category?.testimonial_enabled}
-      />
+          <div
+            className="at-listing__results"
+            style={
+              { '--columns': inSidebar ? Math.min(columns, 3) : columns } as React.CSSProperties
+            }
+          >
+            <HookSlot name="product:list.items.start" />
+            <div
+              className={cn(filterStatus === 'loading' && 'at-listing__dim')}
+              aria-busy={filterStatus === 'loading'}
+            >
+              {filterStatus === 'error' ? (
+                <ErrorState onRetry={retryFilters} />
+              ) : (
+                <ItemsList<Product>
+                  key={itemsKey}
+                  resetKey={itemsKey}
+                  items={shownProducts}
+                  loader={loader}
+                  mode={shownNext ? 'infinite' : 'static'}
+                  pageUrl={location.pathname + location.searchStr}
+                  className="at-listing__list"
+                  itemsClassName={cn('at-grid', view === 'list' && 'at-grid--list')}
+                  skeleton={<CardSkeleton />}
+                  skeletonType="item"
+                  skeletonCount={8}
+                  empty={
+                    <EmptyState
+                      icon={isSearch ? 'sicon-search' : 'sicon-shopping-bag'}
+                      title={
+                        isSearch
+                          ? t('theme.catalog.no_results', 'No results found')
+                          : t('theme.catalog.no_products', 'No products here yet')
+                      }
+                      body={
+                        isSearch
+                          ? t(
+                              'theme.catalog.no_results_hint',
+                              'Check the spelling or try a broader word.'
+                            )
+                          : t(
+                              'theme.catalog.no_products_hint',
+                              'New products will appear here once added.'
+                            )
+                      }
+                      action={
+                        <Button href="/" variant="outline" size="sm">
+                          {t('theme.actions.back_home', 'Back to home')}
+                        </Button>
+                      }
+                    />
+                  }
+                  t={(key, fallback) => t(key, fallback || key)}
+                >
+                  {(items) =>
+                    items.map((item, index) => (
+                      <ProductCard
+                        key={item.id}
+                        product={item}
+                        index={index}
+                        layout={view === 'list' ? 'horizontal' : 'vertical'}
+                        imagePriority={index < 2}
+                        sizes={inSidebar ? WITH_FILTERS_SIZES : undefined}
+                      />
+                    ))
+                  }
+                </ItemsList>
+              )}
+            </div>
+            <HookSlot name="product:list.items.end" />
+          </div>
+        </div>
 
-      {/* App-block hook `product.index.after_testimonials` — after the store-reviews block */}
-      <BlockHookSlot
-        name="product.index.after_testimonials"
-        wrapper="s-after-testimonials"
-        scope={blockScope}
-      />
+        {showFilters && (
+          <Drawer
+            isOpen={filtersOpen}
+            onClose={() => setFiltersOpen(false)}
+            size="md"
+            className="at-drawer"
+          >
+            <div className="at-drawer__head">
+              <span className="at-icon-btn" aria-hidden="true" />
+              <span className="at-drawer__title">{t('theme.catalog.filters', 'Filters')}</span>
+              <button
+                type="button"
+                className="at-icon-btn"
+                aria-label={t('theme.actions.close', 'Close')}
+                onClick={() => setFiltersOpen(false)}
+              >
+                <i className="sicon-cancel" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="at-drawer__body at-drawer__body--padded">
+              <SallaFilters id="filters-menu-mobile" filters={filters as never} />
+            </div>
+          </Drawer>
+        )}
 
-      <HookSlot name="product:list.end" />
+        {source.type === 'categories' && store?.settings?.category?.testimonial_enabled && (
+          <RenderWhenVisible placeholder={<ReviewItemSkeleton />}>
+            <Testimonials data={{}} />
+          </RenderWhenVisible>
+        )}
+
+        <HookSlot name="product:list.end" />
+      </div>
     </div>
   );
 }

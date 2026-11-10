@@ -1,0 +1,134 @@
+/* `MobileNav` and `BottomBar` (app/components/layout). */
+
+.at-drawer {
+  display: flex;
+  flex-direction: column;
+  background: var(--at-surface);
+  color: var(--at-ink);
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 3.75rem;
+    padding-inline: 0.5rem;
+    border-block-end: 1px solid var(--at-line);
+  }
+
+  &__title {
+    font-family: var(--at-font-display);
+    font-weight: 600;
+    font-size: var(--at-text-lg);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__body {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  &__loading {
+    display: grid;
+    gap: 1.25rem;
+    padding: 1.25rem;
+
+    .at-skeleton {
+      height: 1rem;
+    }
+  }
+
+  &__list li + li {
+    border-block-start: 1px solid var(--at-line);
+  }
+
+  &__link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 3.25rem;
+    padding-inline: 1.25rem;
+    text-align: start;
+    font-weight: 500;
+
+    i {
+      color: var(--at-ink-3);
+    }
+  }
+
+  &__foot {
+    border-block-start: 1px solid var(--at-line);
+    padding-block-end: var(--at-safe-bottom);
+  }
+}
+
+.at-bottom-bar {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: var(--at-z-header);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  padding-block-end: var(--at-safe-bottom);
+  background: var(--at-surface);
+  border-block-start: 1px solid var(--at-line);
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.125rem;
+    min-height: 3.5rem;
+    font-size: 0.6875rem;
+    color: var(--at-ink-2);
+
+    i {
+      font-size: 1.25rem;
+    }
+
+    &.is-active {
+      color: var(--at-primary);
+      font-weight: 600;
+    }
+  }
+
+  &__icon {
+    position: relative;
+    display: inline-flex;
+  }
+
+  &__count {
+    position: absolute;
+    inset-block-start: -0.375rem;
+    inset-inline-end: -0.625rem;
+    display: grid;
+    place-items: center;
+    min-width: 1.0625rem;
+    height: 1.0625rem;
+    padding-inline: 0.25rem;
+    border-radius: var(--at-radius-pill);
+    background: var(--at-primary);
+    color: var(--at-on-primary);
+    font-size: 0.625rem;
+    font-weight: 700;
+  }
+
+  @include at-up(lg) {
+    display: none;
+  }
+}
+
+/* The page keeps clear of the fixed bar, and the masthead drops what the bar carries. */
+@include at-down(lg) {
+  .app-inner:has(.at-bottom-bar) {
+    padding-block-end: calc(3.5rem + var(--at-safe-bottom));
+
+    .at-masthead__user {
+      display: none;
+    }
+  }
+}

@@ -1,0 +1,52 @@
+/* `EmptyState` and `ErrorState` (app/components/ui). */
+
+.at-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+  padding: clamp(2rem, 6vw, 4rem) var(--at-gutter);
+  border: 1px dashed var(--at-line-strong);
+  border-radius: var(--at-radius-lg);
+  background: var(--at-surface);
+
+  &__icon {
+    display: grid;
+    place-items: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    margin-block-end: 0.5rem;
+    border-radius: 50%;
+    background: var(--at-surface-2);
+    color: var(--at-ink-2);
+    font-size: 1.5rem;
+  }
+
+  &__title {
+    font-family: var(--at-font-display);
+    font-size: var(--at-text-lg);
+    font-weight: 600;
+    color: var(--at-ink);
+  }
+
+  &__body {
+    max-width: 44ch;
+    color: var(--at-ink-2);
+    font-size: var(--at-text-sm);
+  }
+
+  &__action {
+    margin-block-start: 0.75rem;
+  }
+
+  &--error {
+    border-style: solid;
+    border-color: var(--at-danger-soft);
+
+    .at-state__icon {
+      background: var(--at-danger-soft);
+      color: var(--at-danger);
+    }
+  }
+}

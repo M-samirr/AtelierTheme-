@@ -7,15 +7,20 @@ import { renderToString } from 'react-dom/server';
 import type { ThemeStylesheetProps } from '@salla.sa/twilight-theme-engine/tanstack';
 import { HOME_ROUTE_ID, PRODUCT_ROUTE_ID } from '../../app/lib/routeIds';
 
-const rendered = vi.hoisted(() => ({ stylesheet: null as ThemeStylesheetProps | null }));
+const rendered = vi.hoisted(() => ({
+  stylesheet: null as ThemeStylesheetProps | null,
+  layout: null as unknown,
+}));
 
 vi.mock('@tanstack/react-router', () => ({
   Scripts: () => null,
   Outlet: () => null,
 }));
-vi.mock('@tanstack/react-router-devtools', () => ({ TanStackRouterDevtools: () => null }));
 vi.mock('@salla.sa/twilight-theme-engine', () => ({
-  TwilightProvider: ({ children }: { children?: unknown }) => children,
+  TwilightProvider: ({ children, layout }: { children?: unknown; layout?: unknown }) => {
+    rendered.layout = layout;
+    return children;
+  },
 }));
 vi.mock('@salla.sa/twilight-theme-engine/tanstack', () => ({
   createTwilightRootRoute: () => (options: unknown) => options,
@@ -33,17 +38,26 @@ vi.mock('../../app/styles/app.css?url', () => ({ default: '/app.css' }));
 vi.mock('../../app/styles/critical.scss?inline', () => ({ default: '.home{color:red}' }));
 vi.mock('../../app/styles/critical-product.scss?inline', () => ({ default: '.pdp{color:blue}' }));
 
-describe('root head', () => {
+describe('root shell', () => {
   it('paints the home and product pages from their own critical CSS', async () => {
     const { Route } = await import('../../app/routes/__root');
     const Shell = (Route as unknown as { shellComponent: ComponentType }).shellComponent;
 
-    renderToString(<Shell />);
+    const html = renderToString(<Shell />);
 
     expect(rendered.stylesheet?.href).toBe('/app.css');
     expect(rendered.stylesheet?.critical).toEqual({
       [HOME_ROUTE_ID]: '.home{color:red}',
       [PRODUCT_ROUTE_ID]: '.pdp{color:blue}',
     });
+    expect(html).toContain('lang="ar"');
+    expect(html).toContain('dir="rtl"');
+    expect(html).toContain('viewport-fit=cover');
+  });
+
+  it('hands the theme layout to the provider', async () => {
+    await import('../../app/routes/__root');
+    const { ThemeLayout } = await import('../../app/components/layout/ThemeLayout');
+    expect(rendered.layout).toBe(ThemeLayout);
   });
 });

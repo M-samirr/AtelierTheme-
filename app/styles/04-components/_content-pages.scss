@@ -1,0 +1,228 @@
+/* Blog, brands and merchant-written pages. The markup is the engine's. */
+
+.blog-slider__slide.has-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(20 19 22 / 0.78), rgb(20 19 22 / 0.1) 65%);
+}
+
+.blog-slider__content {
+  color: #fff;
+
+  a,
+  h3 {
+    color: #fff;
+  }
+
+  h3 {
+    font-family: var(--at-font-display);
+    font-size: var(--at-text-xl);
+  }
+
+  .description {
+    color: rgb(255 255 255 / 0.85);
+  }
+}
+
+.blog-category__title,
+.post-entry__title {
+  font-family: var(--at-font-display);
+}
+
+.post-entry {
+  overflow: hidden;
+  border: 1px solid var(--at-line);
+  border-radius: var(--at-radius-lg);
+  background: var(--at-surface);
+  transition:
+    box-shadow var(--at-duration) var(--at-ease-out),
+    transform var(--at-duration) var(--at-ease-out);
+
+  &:hover {
+    box-shadow: var(--at-shadow-md);
+    transform: translateY(-2px);
+  }
+}
+
+.blog-single .s-comments-item-user-info-name {
+  margin-inline: 0;
+}
+
+/* Merchant-written HTML: pages and blog articles. */
+.content-entry,
+.blog-category .leading-7 {
+  color: var(--at-ink-2);
+  font-size: var(--at-text-base);
+  line-height: var(--at-leading-normal);
+  overflow-wrap: anywhere;
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin-block: 1.5em 0.5em;
+    color: var(--at-ink);
+    font-family: var(--at-font-display);
+    font-weight: 600;
+    line-height: var(--at-leading-snug);
+  }
+
+  h1 {
+    font-size: var(--at-text-2xl);
+  }
+
+  h2 {
+    font-size: var(--at-text-xl);
+  }
+
+  h3 {
+    font-size: var(--at-text-lg);
+  }
+
+  p,
+  ul,
+  ol,
+  blockquote,
+  table {
+    margin-block-end: 1em;
+  }
+
+  ul,
+  ol {
+    padding-inline-start: 1.5em;
+  }
+
+  ul {
+    list-style: disc;
+  }
+
+  ol {
+    list-style: decimal;
+  }
+
+  a {
+    color: var(--at-primary);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  img,
+  video,
+  iframe {
+    max-width: 100%;
+    border-radius: var(--at-radius-md);
+  }
+
+  img {
+    height: auto;
+  }
+
+  blockquote {
+    padding-inline-start: 1em;
+    border-inline-start: 3px solid var(--at-line-strong);
+  }
+
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--at-line);
+  }
+}
+
+/* A row of letters that stays under the header, instead of the starter's fixed side column. */
+.brands-nav-wrap {
+  position: sticky;
+  z-index: 5;
+  inset-block-start: calc(var(--at-header-height) + 0.5rem);
+  margin-block-end: 0.5rem;
+}
+
+.brands-nav {
+  display: flex;
+  gap: 0.375rem;
+  padding: 0.5rem;
+  overflow-x: auto;
+  border: 1px solid var(--at-line);
+  border-radius: var(--at-radius-pill);
+  background: var(--at-surface);
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  li:empty {
+    display: none;
+  }
+
+  &__item {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    color: var(--at-ink-2);
+    font-size: var(--at-text-sm);
+    font-weight: 600;
+    transition:
+      background-color var(--at-duration-fast) var(--at-ease-out),
+      color var(--at-duration-fast) var(--at-ease-out);
+
+    &:hover {
+      background-color: var(--at-surface-2);
+      color: var(--at-ink);
+    }
+
+    &.is-selected {
+      background-color: var(--at-primary);
+      color: var(--at-on-primary);
+    }
+  }
+}
+
+[id^='brand-section-'] {
+  padding-block-start: 2.5rem !important;
+  scroll-margin-block-start: calc(var(--at-header-height) + 4rem);
+}
+
+.brand-char {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-inline-end: 1rem;
+  border-radius: var(--at-radius-sm);
+  background: var(--at-surface-2);
+  color: var(--at-ink);
+  font-family: var(--at-font-display);
+  font-size: var(--at-text-lg);
+  font-weight: 600;
+}
+
+.brand-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  padding: 1rem;
+  border: 1px solid var(--at-line);
+  border-radius: var(--at-radius-md);
+  background: var(--at-surface);
+  transition:
+    border-color var(--at-duration-fast) var(--at-ease-out),
+    box-shadow var(--at-duration) var(--at-ease-out);
+
+  &:hover {
+    border-color: var(--at-line-strong);
+    box-shadow: var(--at-shadow-sm);
+  }
+}

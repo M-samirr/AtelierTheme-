@@ -1,0 +1,48 @@
+/* The page frame: container, skip link, main area. */
+
+.at-container {
+  width: 100%;
+  max-width: calc(var(--at-container) + 2 * var(--at-gutter));
+  margin-inline: auto;
+  padding-inline: var(--at-gutter);
+
+  &--narrow {
+    max-width: calc(var(--at-container-narrow) + 2 * var(--at-gutter));
+  }
+}
+
+.at-section {
+  padding-block: var(--at-section-gap);
+
+  &--tight {
+    padding-block: var(--at-block-gap);
+  }
+
+  &--tinted {
+    background-color: var(--at-surface-2);
+  }
+}
+
+/* Keyboard users: the first focusable thing on the page jumps past the header. */
+.at-skip-link {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: calc(var(--at-z-toast) + 1);
+  padding: 0.75rem 1rem;
+  background: var(--at-ink);
+  color: var(--at-surface);
+  font-weight: 600;
+  border-end-end-radius: var(--at-radius-sm);
+  transform: translateY(-120%);
+  transition: transform var(--at-duration-fast) var(--at-ease-out);
+
+  &:focus-visible {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+.app-inner {
+  min-height: 100dvh;
+}

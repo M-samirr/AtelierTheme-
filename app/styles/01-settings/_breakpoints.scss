@@ -1,0 +1,30 @@
+/*
+ * Breakpoints, matching tailwind.config.cjs `screens` so SCSS and utilities
+ * switch at the same widths. Mobile first: `at-up(md)` applies from 768px.
+ */
+$at-breakpoints: (
+  xs: 480px,
+  sm: 640px,
+  md: 768px,
+  lg: 1024px,
+  xl: 1280px,
+  2xl: 1536px,
+);
+
+@mixin at-up($name) {
+  @if not map-has-key($at-breakpoints, $name) {
+    @error "Unknown breakpoint `#{$name}`";
+  }
+  @media (min-width: map-get($at-breakpoints, $name)) {
+    @content;
+  }
+}
+
+@mixin at-down($name) {
+  @if not map-has-key($at-breakpoints, $name) {
+    @error "Unknown breakpoint `#{$name}`";
+  }
+  @media (max-width: calc(#{map-get($at-breakpoints, $name)} - 0.02px)) {
+    @content;
+  }
+}

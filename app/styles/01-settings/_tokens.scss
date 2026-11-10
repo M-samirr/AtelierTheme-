@@ -1,0 +1,105 @@
+/*
+ * Design tokens. Every colour, size, radius, shadow and duration the theme uses
+ * is a custom property declared here, so a look is changed in one place and
+ * Tailwind utilities (tailwind.config.cjs) and SCSS share the same values.
+ *
+ * Brand colour and font come from the merchant: the engine writes
+ * `--color-primary*` and `--font-main` on <html>. The theme never hard-codes
+ * them; the fallbacks below only serve tests and static previews.
+ */
+
+:root {
+  /* Brand (merchant) */
+  --at-primary: var(--color-primary, #1c1b1f);
+  --at-primary-dark: var(--color-primary-dark, #0f0f12);
+  --at-primary-light: var(--color-primary-light, #3a3842);
+  --at-on-primary: var(--color-primary-reverse, #ffffff);
+
+  /* Neutrals: a warm, paper-like scale for an editorial fashion and beauty look */
+  --at-canvas: #faf8f5;
+  --at-surface: #ffffff;
+  --at-surface-2: #f2eee8;
+  --at-surface-3: #e9e3da;
+  --at-ink: #1c1b1f;
+  --at-ink-2: #5d5a63;
+  --at-ink-3: #6e6a75;
+  --at-line: #e6e1da;
+  --at-line-strong: #cfc8be;
+  --at-overlay: rgb(20 19 22 / 0.55);
+
+  /* Semantic */
+  --at-success: #1f7a4d;
+  --at-success-soft: #e4f3ea;
+  --at-warning: #a35f00;
+  --at-warning-soft: #fbefd9;
+  --at-danger: #b3261e;
+  --at-danger-soft: #fbe6e4;
+  --at-info: #1d4ed8;
+  --at-info-soft: #e4eaff;
+  --at-sale: var(--at-danger);
+
+  /* Typography */
+  --at-font-body: var(--font-main, system-ui, -apple-system, 'Segoe UI', sans-serif);
+  --at-font-display: var(--at-font-brand, var(--at-font-body));
+  --at-text-xs: 0.75rem;
+  --at-text-sm: 0.875rem;
+  --at-text-base: 1rem;
+  --at-text-lg: 1.125rem;
+  --at-text-xl: 1.25rem;
+  --at-text-2xl: clamp(1.5rem, 1.2rem + 1vw, 1.875rem);
+  --at-text-3xl: clamp(1.875rem, 1.4rem + 1.6vw, 2.5rem);
+  --at-text-display: clamp(2.25rem, 1.5rem + 3vw, 4rem);
+  --at-leading-tight: 1.2;
+  --at-leading-snug: 1.4;
+  --at-leading-normal: 1.65;
+  --at-tracking-display: -0.01em;
+  --at-tracking-caps: 0.08em;
+
+  /* Layout */
+  --at-container: 1360px;
+  --at-container-narrow: 760px;
+  --at-gutter: clamp(1rem, 4vw, 2.5rem);
+  --at-section-gap: clamp(3rem, 7vw, 6rem);
+  --at-block-gap: clamp(1.5rem, 3vw, 2.5rem);
+  --at-header-height: 72px;
+
+  /* Radii */
+  --at-radius-xs: 4px;
+  --at-radius-sm: 8px;
+  --at-radius-md: 12px;
+  --at-radius-lg: 20px;
+  --at-radius-xl: 28px;
+  --at-radius-pill: 999px;
+  /* Twilight web components read this one token for their corner radius. */
+  --s-radius: var(--at-radius-md);
+
+  /* Elevation */
+  --at-shadow-sm: 0 1px 2px rgb(28 27 31 / 0.06), 0 1px 1px rgb(28 27 31 / 0.04);
+  --at-shadow-md: 0 6px 20px rgb(28 27 31 / 0.08);
+  --at-shadow-lg: 0 18px 48px rgb(28 27 31 / 0.14);
+
+  /* Motion */
+  --at-ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --at-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --at-duration-fast: 150ms;
+  --at-duration: 250ms;
+  --at-duration-slow: 450ms;
+
+  /* Layers */
+  --at-z-header: 40;
+  --at-z-drawer: 50;
+  --at-z-modal: 60;
+  --at-z-toast: 70;
+
+  /* Focus */
+  --at-focus-ring: 0 0 0 3px color-mix(in srgb, var(--at-primary) 35%, transparent);
+
+  /* Device safe areas. In the Salla app the engine writes the app's insets to
+     `--app-safe-area-*`; in a browser they are unset and env() answers. */
+  --at-safe-top: max(env(safe-area-inset-top, 0px), var(--app-safe-area-top, 0px));
+  --at-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--app-safe-area-bottom, 0px));
+}
+
+/* `body.color-mode-dark` is not a dark theme: the engine sets it when the merchant's
+   primary colour is itself dark, and text on it needs to be light. Use
+   `--at-on-primary` for that. A dark storefront would need its own setting. */

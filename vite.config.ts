@@ -41,6 +41,14 @@ export default defineConfig(async () => ({
       'i18next',
     ],
   },
+  optimizeDeps: {
+    // The engine's provider gets its QueryClient through @tanstack/react-router-ssr-query,
+    // which Vite pre-bundles. Unless react-query (and the router) are pre-bundled as entries
+    // of their own, that bundle inlines a private copy and every engine hook that calls
+    // useQuery sees "No QueryClient set". Raed never hit this because its own components
+    // import @tanstack/react-query, which made the optimizer discover it.
+    include: ['@tanstack/react-query', '@tanstack/react-router', 'react', 'react-dom'],
+  },
   environments: {
     ssr: {
       // The workerd SSR runner can't execute raw CommonJS ("module is not
@@ -64,7 +72,8 @@ export default defineConfig(async () => ({
   },
   css: {
     preprocessorOptions: {
-      scss: { api: 'modern-compiler', silenceDeprecations: ['import'] } as any,
+      // Sass's own option; Vite's type for the block does not list it.
+      scss: { api: 'modern-compiler', silenceDeprecations: ['import'] } as Record<string, unknown>,
     },
   },
   build: {

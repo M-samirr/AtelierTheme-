@@ -1,0 +1,10 @@
+/* Dev-only floating tools (router devtools, the twilight.json settings gear,
+   the Salla dev panel) hidden below `sm` so they never cover the mobile UI.
+   The gear ships an inline `display: flex`, hence `!important`. */
+@media (max-width: 639.98px) {
+  .TanStackRouterDevtools,
+  button[aria-label='Theme dev settings'],
+  #__dt-salla-panel-host {
+    display: none !important;
+  }
+}

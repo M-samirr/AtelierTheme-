@@ -1,31 +1,26 @@
+// @auto-generated
 import { createFileRoute } from '@tanstack/react-router';
-import { page as pageApi } from '@salla.sa/twilight-theme-engine/api/page';
-import { PageSingle as EnginePageSingle } from '@salla.sa/twilight-theme-engine/routes/page';
+import { PageSingle } from '@salla.sa/twilight-theme-engine/routes/page';
+import type { PageSingleProps } from '@salla.sa/twilight-theme-engine/routes/page';
 import { withHead } from '@salla.sa/twilight-theme-engine/tanstack';
-import { PageSingle, type PageSingleProps } from '../components/page/PageSingle';
 
+/**
+ * PageSingle route configuration.
+ * Loads page data via loader and renders the PageSingle component.
+ */
 export const Route = createFileRoute('/{-$locale}/$slug/page-{$id}')({
-  loader: async ({ params }): Promise<PageSingleProps> => {
-    const data = await pageApi.findOrThrow(params.id);
-    return {
-      page: {
-        // RouteId.PAGE_SINGLE, which the engine does not export.
-        slug: 'page-single',
-        id: data.id,
-        title: data.name,
-        url: data.url,
-        content: data.content,
-        metadata: data.metadata,
-        created_at: data.created_at,
-        type: data.type,
-      },
-    };
-  },
-  head: withHead(EnginePageSingle),
+  loader: ({ params }): Promise<PageSingleProps> =>
+    PageSingle.loader({ params: { id: params.id }, locale: params.locale }),
+  head: withHead(PageSingle),
   component: PageSingleComponent,
 });
 
+/**
+ * PageSingle page component.
+ * Uses Route.useLoaderData() to access the data loaded by the route loader,
+ * following React best practices for data fetching in route components.
+ */
 function PageSingleComponent() {
-  const data = Route.useLoaderData();
-  return <PageSingle {...data} />;
+  const data: PageSingleProps = Route.useLoaderData();
+  return <PageSingle.Component {...data} />;
 }

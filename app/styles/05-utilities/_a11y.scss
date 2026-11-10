@@ -1,0 +1,43 @@
+/* Accessibility helpers beyond Tailwind's `sr-only`. */
+
+/* Minimum touch target for icon-only controls (WCAG 2.5.8). */
+.at-touch {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+/* Hide from everyone while keeping layout, for content revealed on hover/focus. */
+.at-reveal {
+  opacity: 0;
+  transition: opacity var(--at-duration-fast) var(--at-ease-out);
+
+  :hover > &,
+  :focus-within > & {
+    opacity: 1;
+  }
+
+  @media (hover: none) {
+    opacity: 1;
+  }
+}
+
+/* The merchant's shape and motion choices (ThemeLayout). */
+.at-corners--sharp {
+  --at-radius-sm: 2px;
+  --at-radius-md: 2px;
+  --at-radius-lg: 2px;
+  --at-radius-xl: 2px;
+  --at-radius-pill: 2px;
+}
+
+.at-corners--round {
+  --at-radius-sm: 12px;
+  --at-radius-md: 18px;
+  --at-radius-lg: 28px;
+  --at-radius-xl: 36px;
+}
+
+.at-no-motion * {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}

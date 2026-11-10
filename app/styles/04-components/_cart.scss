@@ -1,0 +1,98 @@
+/* Cart and thank-you pages. The markup is the engine's; only the look is the theme's. */
+
+#coupon-input {
+  height: 2.75rem;
+  border-radius: var(--at-radius-pill);
+  padding-inline-end: 6.5rem;
+}
+
+button.btn--coupon,
+salla-button.btn--coupon {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  margin: 0 !important;
+}
+
+.btn--coupon button,
+button.btn--coupon {
+  height: 2.75rem !important;
+  min-width: 5.5rem;
+  margin: 0 !important;
+  border-radius: var(--at-radius-pill) !important;
+}
+
+/* The applied state shows only a remove icon, the empty state only the word. */
+.btn--coupon.has-not-coupon .icon,
+.btn--coupon.has-coupon .coupon-text {
+  display: none;
+}
+
+.btn--coupon.has-coupon button,
+button.btn--coupon.has-coupon {
+  width: 3rem;
+  min-width: 0;
+  padding-inline: 0;
+}
+
+/* A cart line's options sit inside the row, so they lose the product page's card. */
+.cart-item .s-product-options-wrapper {
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Below `sm` the loading placeholder's actions move to their own line, as a real row does. */
+@include at-down(sm) {
+  .s-skeleton-cart-item {
+    flex-wrap: wrap;
+    row-gap: 1rem;
+    padding: 1rem;
+  }
+
+  .s-skeleton-cart-item-info {
+    min-width: 0;
+  }
+
+  .s-skeleton-cart-item-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-inline: 0 !important;
+  }
+}
+
+.s-gifting-widget .s-list-tile-item {
+  border: 0;
+  background: transparent;
+}
+
+/* The thank-you page's fixed order bar has to clear the phone bottom bar. */
+@include at-down(md) {
+  .app-inner:has(.at-bottom-bar) .s-thank-you-page-wrapper {
+    .s-order-shipments-cta,
+    .s-order-branch-cta {
+      inset-inline: 1rem;
+      bottom: calc(4.5rem + var(--at-safe-bottom));
+      border-width: 0;
+      border-radius: var(--at-radius-lg);
+      box-shadow: var(--at-shadow-md);
+    }
+  }
+
+  .app-inner:has(.at-bottom-bar):has(.s-order-shipments-cta, .s-order-branch-cta) {
+    padding-block-end: calc(11rem + var(--at-safe-bottom));
+  }
+}
+
+.thankyou-block {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-block-end: 1.5rem;
+  padding: 2rem;
+  border-radius: var(--at-radius-md);
+  background: var(--at-surface);
+}

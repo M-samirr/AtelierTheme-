@@ -1,150 +1,178 @@
-const fs = require('fs');
-const path = require('path');
-
-// In the monorepo the installed engine links to the live package, whose dist a
-// rebuild rewrites under a running dev server; scan its source there instead.
-const engineSrc = path.join(__dirname, '../theme-engine/src');
-const engineContent = fs.existsSync(engineSrc)
-  ? `${engineSrc}/**/*.{js,ts,jsx,tsx}`
-  : './node_modules/@salla.sa/twilight-theme-engine/dist/**/*.js';
+/**
+ * Tailwind reads the design tokens from app/styles/01-settings/_tokens.scss, so
+ * a utility and an SCSS rule always agree. Change a value there, not here.
+ *
+ * The "engine compatibility" entries exist because the engine's own components
+ * (header, footer, cart, account pages, ...) were written against the Raed
+ * starter's config and use a few of its custom class names. They are mapped
+ * onto the theme's tokens so those components take the theme's look.
+ */
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  important: false,
   content: [
     './app/**/*.{js,ts,jsx,tsx,scss,css}',
-    engineContent,
-    // SSR'd skeletons and wrapper markup carry `s-*` classes; scan the package that
-    // renders them. Twilight web components ship their own CSS since 2.14.538
-    // (SallaApp/twilight#2107), so the safelist is no longer compiled here.
+    // The engine renders markup with Tailwind classes; scan it or they are dropped.
+    './node_modules/@salla.sa/twilight-theme-engine/dist/**/*.js',
+    // SSR'd skeletons and wrapper markup of the web-component wrappers.
     './node_modules/@salla.sa/twilight-components-react/dist/**/*.js',
   ],
   // `<Image objectFit>` builds these at runtime, out of the scanner's sight.
   safelist: ['object-contain', 'object-cover'],
-  darkMode: 'class', // or 'media' or 'class'
+  darkMode: 'class',
   theme: {
     container: {
       center: true,
-      padding: '10px',
-      screens: {
-        '2xl': '1280px',
-      },
+      padding: 'var(--at-gutter)',
+      // A media query cannot read a custom property: keep equal to --at-container.
+      screens: { '2xl': '1360px' },
     },
     fontFamily: {
-      sans: ['var(--font-main)', '-apple-system', 'BlinkMacSystemFont'],
-      primary: 'var(--font-main)',
+      sans: ['var(--at-font-body)', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+      display: ['var(--at-font-display)', 'var(--at-font-body)', 'sans-serif'],
+      // engine compatibility
+      primary: ['var(--at-font-body)', 'sans-serif'],
     },
     extend: {
-      transitionTimingFunction: {
-        elastic: 'cubic-bezier(0.55, 0, 0.1, 1)',
-      },
-      gridTemplateColumns: {
-        'auto-fill': 'repeat(auto-fill, 290px)',
+      screens: {
+        xs: '480px',
+        // engine compatibility
+        xxs: { min: '380px', max: '479px' },
       },
       colors: {
-        dark: '#1D1F1F',
-        darker: '#0E0F0F',
-        danger: '#AE0A0A',
-        primary: 'var(--color-primary)',
-        'primary-dark': 'var(--color-primary-dark)',
-      },
-      spacing: {
-        3.75: '15px',
-        7.5: '30px',
-        58: '232px',
-        62: '248px',
-        100: '28rem',
-        116: '464px',
-        132: '528px',
-        200: '800px',
-      },
-      borderRadius: {
-        large: '22px',
-        big: '40px',
-        tiny: '3px',
-        DEFAULT: '16px',
+        primary: {
+          DEFAULT: 'var(--at-primary)',
+          dark: 'var(--at-primary-dark)',
+          light: 'var(--at-primary-light)',
+        },
+        'on-primary': 'var(--at-on-primary)',
+        canvas: 'var(--at-canvas)',
+        surface: {
+          DEFAULT: 'var(--at-surface)',
+          2: 'var(--at-surface-2)',
+          3: 'var(--at-surface-3)',
+        },
+        ink: {
+          DEFAULT: 'var(--at-ink)',
+          2: 'var(--at-ink-2)',
+          3: 'var(--at-ink-3)',
+        },
+        line: {
+          DEFAULT: 'var(--at-line)',
+          strong: 'var(--at-line-strong)',
+        },
+        success: { DEFAULT: 'var(--at-success)', soft: 'var(--at-success-soft)' },
+        warning: { DEFAULT: 'var(--at-warning)', soft: 'var(--at-warning-soft)' },
+        danger: { DEFAULT: 'var(--at-danger)', soft: 'var(--at-danger-soft)' },
+        info: { DEFAULT: 'var(--at-info)', soft: 'var(--at-info-soft)' },
+        sale: 'var(--at-sale)',
+        // engine compatibility
+        dark: 'var(--at-ink)',
+        darker: 'var(--at-primary-dark)',
       },
       fontSize: {
-        'icon-lg': '33px',
-        xxs: '10px',
-        xxxs: '8px',
-        'title-size': '42px',
-        '22px': '22px',
+        display: ['var(--at-text-display)', { lineHeight: 'var(--at-leading-tight)' }],
+        '3xl': ['var(--at-text-3xl)', { lineHeight: 'var(--at-leading-tight)' }],
+        '2xl': ['var(--at-text-2xl)', { lineHeight: 'var(--at-leading-tight)' }],
       },
       lineHeight: {
+        tight: 'var(--at-leading-tight)',
+        snug: 'var(--at-leading-snug)',
+        normal: 'var(--at-leading-normal)',
+        // engine compatibility
         12: '3rem',
         14: '3.5rem',
         16: '4rem',
         18: '4.5rem',
         20: '5rem',
       },
+      letterSpacing: {
+        display: 'var(--at-tracking-display)',
+        caps: 'var(--at-tracking-caps)',
+      },
+      borderRadius: {
+        DEFAULT: 'var(--at-radius-md)',
+        xs: 'var(--at-radius-xs)',
+        sm: 'var(--at-radius-sm)',
+        md: 'var(--at-radius-md)',
+        lg: 'var(--at-radius-lg)',
+        xl: 'var(--at-radius-xl)',
+        pill: 'var(--at-radius-pill)',
+        // engine compatibility
+        large: 'var(--at-radius-lg)',
+        big: 'var(--at-radius-xl)',
+        tiny: 'var(--at-radius-xs)',
+      },
       boxShadow: {
-        default: '5px 10px 30px #2B2D340D;',
-        top: '0px 0px 10px #0000001A;',
-        md: '5px 10px 99px #2B2D340D',
-        dropdown: '0 4px 8px rgba(161, 121, 121, 0.07)',
-        light: '0px 4px 15px rgba(1, 1, 1, 0.06)',
-        huge: '0px 3px 6px #00000029',
-        progress: '0 5px 15px rgba(92, 213, 196, 0.4)',
-        mobile:
-          'rgb(0 0 0 / 9%) 0px 2px 1px, rgb(0 0 0 / 9%) 0px 4px 2px, rgb(0 0 0 / 9%) 0px 8px 4px, rgb(0 0 0 / 9%) 0px 16px 18px, rgb(0 0 0 / 9%) -15px 10px 7px, rgb(0 0 0 / 9%) -20px 10px 20px, rgb(0 0 0 / 9%) -20px 10px 20px, rgb(0 0 0 / 9%) -25px 20px 20px',
+        sm: 'var(--at-shadow-sm)',
+        md: 'var(--at-shadow-md)',
+        lg: 'var(--at-shadow-lg)',
+        focus: 'var(--at-focus-ring)',
+        // engine compatibility
+        default: 'var(--at-shadow-md)',
+        top: '0 -4px 16px rgb(28 27 31 / 0.08)',
+        light: 'var(--at-shadow-sm)',
+        dropdown: 'var(--at-shadow-md)',
+        huge: 'var(--at-shadow-lg)',
+      },
+      spacing: {
+        gutter: 'var(--at-gutter)',
+        section: 'var(--at-section-gap)',
+        block: 'var(--at-block-gap)',
+        header: 'var(--at-header-height)',
+        'safe-top': 'var(--at-safe-top)',
+        'safe-bottom': 'var(--at-safe-bottom)',
+      },
+      maxWidth: {
+        container: 'var(--at-container)',
+        narrow: 'var(--at-container-narrow)',
       },
       width: {
+        // engine compatibility
         18: '4.5rem',
         22: '5.5rem',
         74: '18.5rem',
         76: '19rem',
         78: '19.5rem',
       },
-      height: {
-        banner: '200px',
-        'lg-banner': '428px',
-        'full-banner': '600px',
-        500: '500px',
-        460: '460px',
-      },
-      minWidth: {
-        '1/4': '25%',
-        '1/2': '50%',
-        '3/4': '75%',
-      },
-      maxWidth: {
-        '1/4': '25%',
-        '1/2': '50%',
-        '3/4': '75%',
-      },
       zIndex: {
+        header: 'var(--at-z-header)',
+        drawer: 'var(--at-z-drawer)',
+        modal: 'var(--at-z-modal)',
+        toast: 'var(--at-z-toast)',
+        // engine compatibility
         1: '1',
         2: '2',
         '-1': '-1',
       },
-      screens: {
-        xxs: { min: '380px', max: '479px' },
-        xs: '480px',
+      transitionTimingFunction: {
+        out: 'var(--at-ease-out)',
+        'in-out': 'var(--at-ease-in-out)',
+        // engine compatibility
+        elastic: 'cubic-bezier(0.55, 0, 0.1, 1)',
       },
-      backgroundOpacity: {
-        '05': '0.05',
+      transitionDuration: {
+        fast: 'var(--at-duration-fast)',
+        DEFAULT: 'var(--at-duration)',
+        slow: 'var(--at-duration-slow)',
       },
       transitionProperty: {
+        // engine compatibility
         height: 'height',
       },
       keyframes: {
-        slideUpFromBottom: {
-          '0%': { transform: 'translateY(100%)', opacity: '0' },
-          '100%': { transform: 'translateY(0%)', opacity: '1' },
-        },
-        slideDownFromBottom: {
-          '0%': { transform: 'translateY(0%)', opacity: '1' },
-          '100%': { transform: 'translateY(100%)', opacity: '0' },
+        'at-fade-in': {
+          from: { opacity: '0', transform: 'translateY(6px)' },
+          to: { opacity: '1', transform: 'none' },
         },
       },
       animation: {
-        slideUpFromBottom: 'slideUpFromBottom .6s linear',
-        slideDownFromBottom: 'slideDownFromBottom .6s linear',
+        'at-fade-in': 'at-fade-in var(--at-duration) var(--at-ease-out) both',
       },
     },
   },
   corePlugins: {
+    // The theme sets one focus style in 02-generic/_reset.scss.
     outline: false,
   },
   plugins: [require('@salla.sa/twilight-tailwind-theme'), require('@tailwindcss/forms')],

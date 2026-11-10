@@ -1,0 +1,10 @@
+dist
+node_modules
+coverage
+.tanstack
+.wrangler
+app/routeTree.gen.ts
+app/routes/*.tsx
+!app/routes/__root.tsx
+pnpm-lock.yaml
+app/styles/vendor

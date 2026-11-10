@@ -1,0 +1,84 @@
+/* Form controls the theme renders itself. `@tailwindcss/forms` resets them; this gives them the theme's look. */
+
+.at-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+
+  &__label {
+    font-size: var(--at-text-sm);
+    font-weight: 600;
+    color: var(--at-ink);
+  }
+
+  &__hint {
+    font-size: var(--at-text-xs);
+    color: var(--at-ink-3);
+  }
+
+  &__error {
+    font-size: var(--at-text-xs);
+    color: var(--at-danger);
+  }
+}
+
+.at-input,
+.at-select,
+.at-textarea {
+  width: 100%;
+  min-height: 2.75rem;
+  padding-block: 0.625rem;
+  padding-inline: 0.875rem;
+  border: 1px solid var(--at-line-strong);
+  border-radius: var(--at-radius-sm);
+  background-color: var(--at-surface);
+  color: var(--at-ink);
+  font-size: var(--at-text-sm);
+  transition: border-color var(--at-duration-fast) var(--at-ease-out);
+
+  &::placeholder {
+    color: var(--at-ink-3);
+  }
+
+  &:hover {
+    border-color: var(--at-ink-3);
+  }
+
+  &:focus,
+  &:focus-visible {
+    border-color: var(--at-primary);
+    box-shadow: var(--at-focus-ring);
+    outline: none;
+  }
+
+  &[aria-invalid='true'] {
+    border-color: var(--at-danger);
+  }
+
+  &:disabled {
+    background-color: var(--at-surface-2);
+    color: var(--at-ink-3);
+    cursor: not-allowed;
+  }
+}
+
+.at-textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.at-select {
+  padding-inline-end: 2.5rem;
+  background-position: left 0.75rem center;
+
+  [dir='ltr'] & {
+    background-position: right 0.75rem center;
+  }
+}
+
+/* The forms plugin pins the arrow to the right; in Arabic that puts it on top of the text. */
+[dir='rtl'] select:not(.at-select, [multiple]) {
+  background-position: left 0.75rem center;
+  padding-inline-start: 0.875rem;
+  padding-inline-end: 2.5rem;
+}

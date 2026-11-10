@@ -1,7 +1,9 @@
 # AGENTS.md
 
-Salla React storefront theme: TanStack Start (server-rendered at the edge) on
-`@salla.sa/twilight-theme-engine`. You customize the engine; you do not fork it.
+Atelier: a Salla React storefront theme on TanStack Start (server-rendered at the edge) and
+`@salla.sa/twilight-theme-engine`. You customize the engine; you do not fork it. Theme-specific
+conventions (tokens, settings readers, RTL helpers, lint rules) are in `README.md`; platform
+research and phase reports are in `../docs/`.
 
 ## Read the docs before writing code
 

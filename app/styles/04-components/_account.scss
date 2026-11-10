@@ -1,0 +1,254 @@
+/* Customer account and loyalty pages. The markup is the engine's. */
+
+.gradient-bg {
+  background: linear-gradient(120deg, var(--at-primary), var(--at-primary-dark));
+  color: var(--at-on-primary);
+}
+
+.profile-header {
+  position: relative;
+  overflow: hidden;
+
+  @include at-up(lg) {
+    height: 12rem;
+  }
+
+  .breadcrumbs {
+    a,
+    span,
+    .arrow {
+      color: var(--at-on-primary);
+    }
+
+    a:hover {
+      opacity: 0.8;
+    }
+  }
+}
+
+.avatar-wrap {
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--at-surface-2);
+}
+
+.s-orders-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-end: 1.5rem;
+
+  &-item {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--at-line);
+    border-radius: var(--at-radius-pill);
+    background: var(--at-surface);
+    color: var(--at-ink-2);
+    font-size: var(--at-text-sm);
+    transition:
+      border-color var(--at-duration-fast) var(--at-ease-out),
+      color var(--at-duration-fast) var(--at-ease-out);
+
+    &:hover {
+      border-color: var(--at-line-strong);
+      color: var(--at-ink);
+    }
+
+    &-active,
+    &-active:hover {
+      border-color: var(--at-primary);
+      background: var(--at-primary);
+      color: var(--at-on-primary);
+    }
+  }
+}
+
+/* The order page's digital-content and tracking links have no styles of their own. */
+.salla-button.salla-button--small {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 1rem 0.375rem;
+  border: 1px solid var(--at-primary);
+  border-radius: var(--at-radius-pill);
+  color: var(--at-primary);
+  font-size: var(--at-text-xs);
+  font-weight: 500;
+  transition:
+    background-color var(--at-duration-fast) var(--at-ease-out),
+    color var(--at-duration-fast) var(--at-ease-out);
+
+  &:hover {
+    background: var(--at-primary);
+    color: var(--at-on-primary);
+  }
+
+  .salla-button-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+}
+
+.single-order-header-item {
+  @include at-down(md) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    row-gap: 0.5rem;
+    white-space: normal;
+
+    > div,
+    > div > div {
+      flex-wrap: wrap;
+      row-gap: 0.5rem;
+    }
+  }
+}
+
+.order-file .s-button-text {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.125rem 0.75rem 0.25rem;
+  border: 1px solid var(--at-line);
+  border-radius: var(--at-radius-xs);
+  font-size: var(--at-text-sm);
+
+  &--primary {
+    border-color: var(--at-primary);
+    color: var(--at-primary);
+  }
+}
+
+.rating-header {
+  position: relative;
+  padding: 1.25rem;
+  border-radius: var(--at-radius-md);
+  background: linear-gradient(120deg, var(--at-primary), var(--at-primary-dark));
+  color: var(--at-on-primary);
+}
+
+.rating-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  salla-button button {
+    width: 2rem !important;
+    height: 2rem !important;
+    margin-inline: 0 !important;
+    border-radius: var(--at-radius-sm) !important;
+  }
+}
+
+.form--user-profile .s-file-upload-wrapper {
+  min-height: 120px;
+
+  .filepond--drop-label {
+    min-height: 120px !important;
+    border: 1px dashed var(--at-line-strong);
+    border-radius: var(--at-radius-md);
+    background: var(--at-surface);
+    cursor: pointer;
+  }
+
+  .profile-filepond-placholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* The SDK always renders its own wishlist widget here, and it needs a list this page does not use. */
+#wishlist > salla-wishlist-actions {
+  display: none;
+}
+
+.s-wishlist-actions-menu {
+  border: 1px solid var(--at-line);
+}
+
+/* Hangs from the button's end edge, so the menu stays on a phone screen. */
+.s-wishlist-actions-dropdown .s-wishlist-actions-menu {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+  max-width: calc(100vw - 2rem);
+}
+
+.product-entry--wishlist {
+  &.is-selected {
+    outline: 2px solid var(--at-primary);
+    outline-offset: -2px;
+  }
+
+  .s-wishlist-select {
+    width: 1.25rem;
+    height: 1.25rem;
+    accent-color: var(--at-primary);
+  }
+
+  @include at-down(md) {
+    salla-add-product-button > div {
+      width: 100%;
+    }
+  }
+}
+
+.product-entry__image {
+  flex: none;
+  overflow: hidden;
+  border-radius: var(--at-radius-sm);
+}
+
+.s-wallet-table {
+  width: 100%;
+}
+
+.loyalty .breadcrumbs {
+  padding-block: 1rem 0;
+
+  a,
+  span,
+  .arrow {
+    color: rgb(255 255 255 / 0.9);
+  }
+}
+
+.s-loyalty-program-rewards-container .swiper-slide,
+.s-loyalty-program-rewards-container-cart .swiper-slide {
+  height: auto;
+}
+
+.s-loyalty-program-reward-host {
+  display: block;
+  height: 100%;
+}
+
+.s-loyalty-program-reward-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  > [role='button'] {
+    flex: 1;
+  }
+}
+
+.s-loyalty-program-rewards-name {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@include at-down(lg) {
+  .profile-header + .container {
+    padding-block-start: 1.25rem;
+  }
+}

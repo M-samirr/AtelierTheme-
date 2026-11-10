@@ -1,0 +1,23 @@
+/*
+ * Direction fixes. Layout uses logical properties and Tailwind's `ms-*` /
+ * `ps-*` / `text-start`, so very little lives here: only icons that point
+ * somewhere, which must mirror between Arabic and English.
+ */
+
+/* An icon drawn pointing the Arabic way (left = forward) that must mirror in LTR. */
+[dir='ltr'] .at-flip-ltr {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+
+/* An icon drawn pointing the English way that must mirror in RTL. */
+[dir='rtl'] .at-flip-rtl {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+
+/* The engine's breadcrumb separator always points left (`BreadcrumbTrail`);
+   in LTR the trail reads left to right, so it must point right. */
+[dir='ltr'] .s-breadcrumb-arrow svg {
+  transform: scaleX(-1);
+}

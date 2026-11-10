@@ -1,0 +1,75 @@
+/* Type: display headings in the display face, body in the merchant's font. */
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--at-font-display);
+  font-weight: 600;
+  line-height: var(--at-leading-tight);
+  letter-spacing: var(--at-tracking-display);
+  color: var(--at-ink);
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--at-text-3xl);
+}
+
+h2 {
+  font-size: var(--at-text-2xl);
+}
+
+h3 {
+  font-size: var(--at-text-xl);
+}
+
+h4 {
+  font-size: var(--at-text-lg);
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Small caps label used for eyebrows, badges and meta rows. */
+.at-eyebrow {
+  font-size: var(--at-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--at-tracking-caps);
+  text-transform: uppercase;
+  color: var(--at-ink-2);
+}
+
+/* Merchant-written content (page bodies, product descriptions). */
+.at-prose {
+  color: var(--at-ink-2);
+  line-height: var(--at-leading-normal);
+
+  > * + * {
+    margin-block-start: 1em;
+  }
+
+  a {
+    color: var(--at-primary);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+
+  ul,
+  ol {
+    padding-inline-start: 1.5em;
+  }
+
+  ul {
+    list-style: disc;
+  }
+
+  ol {
+    list-style: decimal;
+  }
+
+  img {
+    border-radius: var(--at-radius-md);
+  }
+}

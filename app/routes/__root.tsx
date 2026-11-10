@@ -7,7 +7,6 @@ import {
   ThemeHeadContent,
   ThemeStylesheet,
 } from '@salla.sa/twilight-theme-engine/tanstack';
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import themeTranslations from 'virtual:twilight/theme-translations';
 import devSchema from 'virtual:twilight/schema';
 import { ThemeLayout } from '../components/layout/ThemeLayout';
@@ -16,12 +15,18 @@ import appCssUrl from '../styles/app.css?url';
 import homeCriticalCss from '../styles/critical.scss?inline';
 import productCriticalCss from '../styles/critical-product.scss?inline';
 
-// Dev-only: reads the theme's local twilight.json (settings + components),
-// fills defaults, and lets you edit them live. Imported from the engine's `/dev`
-// subpath under an import.meta.env.DEV gate so it is tree-shaken from prod builds.
+// Dev only: the local twilight.json settings panel and the router devtools.
+// Both sit behind `import.meta.env.DEV` so production builds drop them.
 const DevSettingsWidget = import.meta.env.DEV
   ? lazy(() =>
       import('@salla.sa/twilight-theme-engine/dev').then((m) => ({ default: m.DevSettingsWidget }))
+    )
+  : null;
+const RouterDevtools = import.meta.env.DEV
+  ? lazy(() =>
+      import('@tanstack/react-router-devtools').then((m) => ({
+        default: m.TanStackRouterDevtools,
+      }))
     )
   : null;
 
@@ -29,7 +34,8 @@ export const Route = createTwilightRootRoute()({
   shellComponent: RootComponent,
 });
 
-// Server-only strings: the client bundle skips them; hydration adopts the inlined <style> by its href.
+// Critical CSS ships with the server render only. The client keeps the keys
+// (empty strings) so hydration finds the same <style> the server inlined.
 const CRITICAL_CSS = {
   [HOME_ROUTE_ID]: import.meta.env.SSR ? homeCriticalCss : '',
   [PRODUCT_ROUTE_ID]: import.meta.env.SSR ? productCriticalCss : '',
@@ -41,21 +47,11 @@ function RootComponent() {
     <html lang={ctx.locale} dir={ctx.dir} suppressHydrationWarning>
       <head>
         <meta charSet="UTF-8" />
-        <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        {/* Home and product paint from inline critical CSS; `bootClient` adds the full sheet once
-            their first screen has painted. Other routes: the full sheet blocks, as before. */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <ThemeStylesheet href={appCssUrl} critical={CRITICAL_CSS} />
         <ThemeHeadContent />
       </head>
       <body suppressHydrationWarning>
-        <noscript>
-          To get full functionality of this site you need to enable JavaScript.
-          <a href="https://www.enable-javascript.com/" rel="noreferrer" target="_blank">
-            To enable JavaScript on webpage
-          </a>
-          .
-        </noscript>
         <TwilightProvider
           translations={themeTranslations}
           layout={ThemeLayout}
@@ -63,7 +59,11 @@ function RootComponent() {
         >
           <Outlet />
         </TwilightProvider>
-        <TanStackRouterDevtools position="bottom-right" />
+        {RouterDevtools && (
+          <Suspense fallback={null}>
+            <RouterDevtools position="bottom-right" />
+          </Suspense>
+        )}
         {DevSettingsWidget && (
           <Suspense fallback={null}>
             <DevSettingsWidget schema={devSchema} />

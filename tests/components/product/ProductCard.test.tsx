@@ -1,162 +1,156 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor, cleanup } from '@testing-library/react';
-import { ProductCard } from '../../../app/components/product/ProductCard';
-import { PRODUCT_IMAGE_PLACEHOLDER } from '../../../app/lib/productImage';
+import { render, screen, fireEvent } from '@testing-library/react';
+import type { Product } from '@salla.sa/twilight-theme-engine/types';
+import { ProductCard, discountPercent } from '../../../app/components/product/ProductCard';
 
-const wishlistState = { ids: [] as number[] };
+const state = vi.hoisted(() => ({
+  settings: {} as Record<string, unknown>,
+  inWishlist: false,
+  toggle: vi.fn(),
+}));
 
-// Mirrors the real engine's conditional: the image-corner wishlist button only
-// renders for `!isHorizontal && !isFullImage` (theme-engine ProductCard.tsx) —
-// a `layout` change on an already-mounted card unmounts just that button while
-// its siblings (and the whole card) stay mounted.
-vi.mock('@salla.sa/twilight-theme-engine/product', () => ({
-  ProductCard: ({
-    product,
-    layout = 'vertical',
-  }: {
-    product: { id: number; name: string; image?: { url?: string } };
-    layout?: string;
-  }) => (
-    <div
-      className="s-product-card-vertical"
-      data-testid="engine-card"
-      data-image={product.image?.url}
-    >
-      <div className="s-product-card-image">
-        {layout !== 'horizontal' && (
-          <button
-            type="button"
-            className="s-product-card-wishlist-btn"
-            aria-label="engine wishlist"
-          >
-            {product.name}
-          </button>
-        )}
-      </div>
-      <div className="s-product-card-content-footer" data-testid="footer">
-        <salla-add-product-button fill="outline" />
-      </div>
-    </div>
+vi.mock('@salla.sa/twilight-theme-engine/common', () => ({
+  Link: ({ to, children, ...rest }: { to: string; children?: unknown }) => (
+    <a href={to} {...rest}>
+      {children as never}
+    </a>
+  ),
+  Image: ({ src, alt, className }: { src?: string; alt: string; className?: string }) =>
+    src ? <img src={src} alt={alt} className={className} /> : null,
+}));
+vi.mock('@salla.sa/twilight-theme-engine/hooks/useMoney', () => ({
+  useMoney: () => ({ format: (value: unknown) => `SAR ${value}` }),
+}));
+vi.mock('@salla.sa/twilight-theme-engine/hooks/useWishlist', () => ({
+  useWishlist: () => ({ has: () => state.inWishlist, toggle: state.toggle }),
+}));
+vi.mock('@salla.sa/twilight-theme-engine/hooks/useAsset', () => ({
+  useAsset: () => ({ isPlaceholder: () => false }),
+}));
+vi.mock('@salla.sa/twilight-theme-engine/hooks/useHostAttributes', () => ({
+  useHostAttributes: () => () => undefined,
+}));
+vi.mock('@salla.sa/twilight-theme-engine/hooks', () => ({
+  useNumber: () => ({ format: (value: unknown) => String(value) }),
+}));
+vi.mock('@salla.sa/twilight-theme-engine/i18n', () => ({
+  useTranslation: () => ({
+    t: (_key: string, options?: string | { defaultValue: string; [key: string]: unknown }) => {
+      if (typeof options === 'string') return options;
+      return Object.entries(options ?? {}).reduce(
+        (text, [key, value]) => text.replace(`{{${key}}}`, String(value)),
+        options?.defaultValue ?? _key
+      );
+    },
+  }),
+}));
+vi.mock('@salla.sa/twilight-theme-engine/providers', () => ({
+  useTwilight: () => ({ theme: { settings: state.settings } }),
+}));
+vi.mock('@salla.sa/twilight-components-react/add-product-button', () => ({
+  SallaAddProductButton: ({ productStatus }: { productStatus: string }) => (
+    <button data-testid="add" data-status={productStatus} />
   ),
 }));
 
-vi.mock('@salla.sa/twilight-theme-engine/hooks/useWishlist', () => ({
-  useWishlist: () => ({
-    has: (id: number) => wishlistState.ids.includes(id),
-    toggle: vi.fn((id: number) => {
-      wishlistState.ids = wishlistState.ids.includes(id)
-        ? wishlistState.ids.filter((x) => x !== id)
-        : [...wishlistState.ids, id];
-    }),
-  }),
-}));
+const base = {
+  id: 7,
+  name: 'Linen dress',
+  url: 'https://store.test/dress/p7',
+  type: 'product',
+  status: 'sale',
+  price: 200,
+  sale_price: null,
+  regular_price: 200,
+  is_on_sale: false,
+  is_out_of_stock: false,
+  image: { url: 'https://cdn.test/a.jpg', alt: 'Dress' },
+} as unknown as Product;
 
-vi.mock('@salla.sa/twilight-theme-engine/i18n', () => ({
-  useTranslation: () => ({ t: (_k: string, fallback?: string) => fallback ?? _k }),
-}));
-
-const product = { id: 42, name: 'Test product' } as never;
-
-beforeEach(() => {
-  wishlistState.ids = [];
-  cleanup();
-});
+const product = (extra: Partial<Product>) => ({ ...base, ...extra }) as Product;
 
 describe('ProductCard', () => {
-  it('shows the placeholder, whole, for a product with no photo', () => {
-    const { getByTestId } = render(<ProductCard product={product} />);
-    const card = getByTestId('engine-card');
-    expect(card.getAttribute('data-image')).toBe(PRODUCT_IMAGE_PLACEHOLDER);
-    expect(card.parentElement?.hasAttribute('data-image-placeholder')).toBe(true);
+  beforeEach(() => {
+    state.settings = {};
+    state.inWishlist = false;
+    state.toggle.mockClear();
   });
 
-  it('leaves a product with a photo as it is', () => {
-    const photo = { id: 1, name: 'Photo', image: { url: 'https://example.com/a.jpg' } } as never;
-    const { getByTestId } = render(<ProductCard product={photo} />);
-    const card = getByTestId('engine-card');
-    expect(card.getAttribute('data-image')).toBe('https://example.com/a.jpg');
-    expect(card.parentElement?.hasAttribute('data-image-placeholder')).toBe(false);
+  it('links the name to the product and shows the price', () => {
+    render(<ProductCard product={base} />);
+    expect(screen.getByRole('heading', { name: 'Linen dress' })).toBeTruthy();
+    expect(screen.getAllByRole('link')[0].getAttribute('href')).toBe(base.url);
+    expect(screen.getByText('SAR 200')).toBeTruthy();
   });
 
-  it('portals a wishlist toggle into the engine card footer instead of moving the image one', async () => {
-    const { getByTestId, getByLabelText } = render(<ProductCard product={product} />);
+  it('shows the sale price, the old price and the percentage off', () => {
+    render(<ProductCard product={product({ is_on_sale: true, sale_price: 150 })} />);
+    expect(screen.getByText('SAR 150')).toBeTruthy();
+    expect(screen.getByText('SAR 200')).toBeTruthy();
+    expect(screen.getByText('25% off')).toBeTruthy();
+  });
 
-    await waitFor(() => {
-      expect(
-        getByTestId('footer').querySelector('[aria-label="Add or remove to wishlist"]')
-      ).toBeTruthy();
+  it('prefers the merchant promotion title over the computed discount', () => {
+    render(
+      <ProductCard
+        product={product({ is_on_sale: true, sale_price: 150, promotion_title: 'Eid offer' })}
+      />
+    );
+    expect(screen.getByText('Eid offer')).toBeTruthy();
+    expect(screen.queryByText('25% off')).toBeNull();
+  });
+
+  it('marks a sold-out product and offers to notify', () => {
+    const { container } = render(<ProductCard product={product({ is_out_of_stock: true })} />);
+    expect(screen.getByText('Sold out')).toBeTruthy();
+    expect(container.querySelector('.at-card--sold-out')).not.toBeNull();
+    expect(screen.getByTestId('add').dataset.status).toBe('out-and-notify');
+  });
+
+  it('keeps the product status when the merchant turned notify off', () => {
+    state.settings = { notify_when_available_in_card: false };
+    render(<ProductCard product={product({ is_out_of_stock: true })} />);
+    expect(screen.getByTestId('add').dataset.status).toBe('sale');
+  });
+
+  it('toggles the wishlist and reports its state', () => {
+    state.inWishlist = true;
+    render(<ProductCard product={base} />);
+    const button = screen.getByRole('button', { name: 'Add to wishlist' });
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(button);
+    expect(state.toggle).toHaveBeenCalledWith(7);
+  });
+
+  it('shows a second image only for the second-image hover effect', () => {
+    const withImages = product({
+      images: [{ url: 'https://cdn.test/a.jpg' }, { url: 'https://cdn.test/b.jpg' }] as never,
     });
-
-    // The engine's own image-corner button is untouched — still inside the image container,
-    // not moved (i.e. this is a style hide, not the old appendChild reparenting).
-    expect(getByLabelText('engine wishlist').closest('.s-product-card-image')).toBeTruthy();
-    // Our portaled button lives in the footer, as a distinct element.
-    expect(getByTestId('footer').querySelector('button')).toBeTruthy();
+    const { container, unmount } = render(<ProductCard product={withImages} />);
+    expect(container.querySelector('.at-card__img--second')).not.toBeNull();
+    unmount();
+    state.settings = { product_card_hover: 'zoom' };
+    const again = render(<ProductCard product={withImages} />);
+    expect(again.container.querySelector('.at-card__img--second')).toBeNull();
   });
 
-  it('hides the engine image-corner button so only one wishlist control is visible', async () => {
-    const { getByTestId, getByLabelText } = render(<ProductCard product={product} />);
-
-    await waitFor(() => expect(getByLabelText('engine wishlist').style.display).toBe('none'));
-    // The footer's portaled button stays visible (no inline hide applied to it).
-    expect(getByTestId('footer').querySelector('button')?.style.display).not.toBe('none');
+  it('hides quick add when asked, by setting or by prop', () => {
+    state.settings = { product_card_quick_add: false };
+    const { unmount } = render(<ProductCard product={base} />);
+    expect(screen.queryByTestId('add')).toBeNull();
+    unmount();
+    state.settings = {};
+    render(<ProductCard product={base} withoutAddButton />);
+    expect(screen.queryByTestId('add')).toBeNull();
   });
 
-  it('toggles the wishlist through the portaled button without touching the engine node', async () => {
-    const { getByTestId } = render(<ProductCard product={product} />);
-
-    await waitFor(() => expect(getByTestId('footer').querySelector('button')).toBeTruthy());
-    const footerBtn = getByTestId('footer').querySelector('button')!;
-    footerBtn.click();
-
-    expect(wishlistState.ids).toContain(42);
-  });
-
-  it('shows a saved product as added when the list sends its id as a string', async () => {
-    wishlistState.ids = [42];
-    const { getByTestId } = render(<ProductCard product={{ id: '42', name: 'Listed' } as never} />);
-
-    await waitFor(() =>
-      expect(getByTestId('footer').querySelector('button')?.className).toContain(
-        's-product-card-wishlist-added'
-      )
+  it('computes a discount only when it is honest', () => {
+    expect(discountPercent(product({ is_on_sale: true, sale_price: 75, regular_price: 100 }))).toBe(
+      25
     );
-    expect(getByTestId('footer').querySelector('button')?.getAttribute('aria-pressed')).toBe('true');
-  });
-
-  it('reports an unsaved product as not pressed', async () => {
-    const { getByTestId } = render(<ProductCard product={product} />);
-
-    await waitFor(() =>
-      expect(getByTestId('footer').querySelector('button')?.getAttribute('aria-pressed')).toBe(
-        'false'
-      )
-    );
-  });
-
-  it('marks the heart with the product id, as Twig does, so wishlist apps can find it', async () => {
-    const { getByTestId } = render(<ProductCard product={product} />);
-
-    await waitFor(() =>
-      expect(getByTestId('footer').querySelector('button')?.getAttribute('data-id')).toBe('42')
-    );
-  });
-
-  it('unmounts cleanly — no DOM-reparenting removeChild errors', async () => {
-    const { getByTestId, unmount } = render(<ProductCard product={product} />);
-    await waitFor(() => expect(getByTestId('footer').querySelector('button')).toBeTruthy());
-
-    expect(() => unmount()).not.toThrow();
-  });
-
-  it('survives the engine unmounting its own conditional wishlist button on a layout change', async () => {
-    // The old implementation physically moved the engine's image-corner button into the
-    // footer with `appendChild`. React still believed it lived under `.s-product-card-image`,
-    // so when a `layout` change made the engine stop rendering it there, React's reconciler
-    // tried to `removeChild` it from that (no-longer-actual) parent and threw `NotFoundError`.
-    const { getByTestId, rerender } = render(<ProductCard product={product} layout="vertical" />);
-    await waitFor(() => expect(getByTestId('footer').querySelector('button')).toBeTruthy());
-
-    expect(() => rerender(<ProductCard product={product} layout="horizontal" />)).not.toThrow();
+    expect(discountPercent(product({ is_on_sale: false, sale_price: 75 }))).toBeNull();
+    expect(
+      discountPercent(product({ is_on_sale: true, sale_price: 120, regular_price: 100 }))
+    ).toBeNull();
   });
 });

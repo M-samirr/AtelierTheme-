@@ -1,0 +1,163 @@
+/* Shared classes the engine's own pages use without styling them: its buttons, empty state, spinner. */
+
+.fix-align {
+  display: inline-block;
+}
+
+.hide-scroll {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.btn,
+.btn--oval,
+.btn--rounded-full,
+.btn--rounded-gray,
+.btn--delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border: 1px solid transparent;
+  font-size: var(--at-text-sm);
+  font-weight: 600;
+  transition:
+    background-color var(--at-duration-fast) var(--at-ease-out),
+    border-color var(--at-duration-fast) var(--at-ease-out),
+    color var(--at-duration-fast) var(--at-ease-out);
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--at-focus-ring);
+  }
+}
+
+.btn {
+  min-height: 2.75rem;
+  padding-inline: 1.5rem;
+}
+
+/* Dark text, because a merchant's primary colour may be too light to read on white. */
+.btn--outline-primary {
+  border-color: var(--at-primary);
+  color: var(--at-ink);
+
+  &:hover {
+    background-color: var(--at-primary);
+    color: var(--at-on-primary);
+  }
+}
+
+.btn--rounded-full {
+  border-radius: var(--at-radius-pill);
+}
+
+.btn--oval {
+  border-radius: var(--at-radius-pill);
+  background-color: var(--at-surface-2);
+  color: var(--at-ink);
+
+  &:hover {
+    background-color: var(--at-surface-3);
+  }
+}
+
+.btn--md {
+  min-height: 2.5rem;
+  padding-inline: 1.25rem;
+}
+
+.btn--rounded-gray,
+.btn--delete {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background-color: var(--at-surface-2);
+  color: var(--at-ink-2);
+
+  &:hover {
+    background-color: var(--at-surface-3);
+    color: var(--at-ink);
+  }
+}
+
+.btn--delete:hover {
+  background-color: var(--at-danger-soft);
+  color: var(--at-danger);
+}
+
+.link--primary {
+  color: var(--at-primary);
+  transition: color var(--at-duration-fast) var(--at-ease-out);
+
+  &:hover {
+    color: var(--at-primary-dark);
+  }
+}
+
+.loader {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--at-line-strong);
+  border-block-start-color: var(--at-primary);
+  border-radius: 50%;
+  animation: at-engine-spin 0.8s linear infinite;
+
+  &--small {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+@keyframes at-engine-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Same look as the theme's own EmptyState. */
+.no-content-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-block: var(--at-block-gap) var(--at-section-gap);
+  padding: clamp(2.5rem, 7vw, 4.5rem) var(--at-gutter);
+  border: 1px dashed var(--at-line-strong);
+  border-radius: var(--at-radius-lg);
+  background: var(--at-surface);
+  text-align: center;
+
+  .icon {
+    display: grid;
+    place-items: center;
+    width: 4.5rem;
+    height: 4.5rem;
+    border-radius: 50%;
+    background: var(--at-surface-2);
+    color: var(--at-ink-2);
+    font-size: 1.75rem;
+  }
+
+  p {
+    color: var(--at-ink-2);
+    font-size: var(--at-text-base);
+  }
+}
+
+.s-items-list-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 200px;
+}
+
+/* Salla's colour utility on this heading is !important. */
+h1[data-testid='error-code'] {
+  color: var(--at-ink-3) !important;
+}
