@@ -4,14 +4,14 @@
 
 ### العربية
 
-- الإصدار الأول من ثيم وشاح ستوديو.
+- الإصدار الأول من ثيم وشاح.
 - صفحة رئيسية بـ 12 مكونًا قابلًا للتخصيص.
 - صفحات المنتجات والسلة والمدونة والماركات والحساب.
 - دعم كامل للعربية والإنجليزية والجوال.
 
 ### English
 
-- First release of the Wishah Studio theme.
+- First release of the WishahStudio theme.
 - Home page with 12 customizable blocks.
 - Product, cart, blog, brand and account pages.
 - Full Arabic, English and mobile support.
