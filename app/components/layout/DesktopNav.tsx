@@ -93,7 +93,7 @@ export function DesktopNav() {
 
   if (isLoading) {
     return (
-      <nav className="at-nav" aria-hidden="true">
+      <nav key="loading" className="at-nav" aria-hidden="true">
         <ul className="at-nav__list">
           {[64, 88, 72, 96, 64].map((width) => (
             <li key={width} className="at-nav__item">
@@ -109,7 +109,7 @@ export function DesktopNav() {
   const overflow = items.slice(VISIBLE_ROOT_ITEMS);
 
   return (
-    <nav className="at-nav" aria-label={t('theme.nav.main', 'Main menu')}>
+    <nav key="ready" className="at-nav" aria-label={t('theme.nav.main', 'Main menu')}>
       <ul className="at-nav__list">
         {visible.map((item, index) => (
           <RootItem key={`${item.id}-${index}`} item={item} />
