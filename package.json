@@ -1,8 +1,8 @@
 {
-  "name": "atelier",
+  "name": "anaqa",
   "version": "0.1.0",
   "private": true,
-  "description": "Atelier - an editorial Salla React theme for fashion and beauty stores",
+  "description": "Anaqa - an editorial Salla React theme for fashion and beauty stores",
   "type": "module",
   "packageManager": "pnpm@10.34.9",
   "engines": {

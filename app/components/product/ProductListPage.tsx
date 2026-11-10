@@ -31,7 +31,7 @@ type View = 'grid' | 'list';
 
 const VIEWS = ['grid', 'list'] as const;
 const FILTER_POSITIONS = ['sidebar', 'drawer'] as const;
-const VIEW_STORAGE_KEY = 'atelier:catalog-view';
+const VIEW_STORAGE_KEY = 'anaqa:catalog-view';
 const WITH_FILTERS_SIZES = '(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw';
 
 interface BrandEntity {
